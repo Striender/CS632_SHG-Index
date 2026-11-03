@@ -11,3 +11,14 @@ var/
 .vs/
 **.DS_Store
 *.pyc
+enron/
+sift/
+gist/
+sift10m/
+sift10m.zip
+bench_prune/bench_prune
+bench_prune/bench_prune_dbg
+bench_prune/bench_stall
+bench_prune/bench_stall_full
+bench_prune/check_asan/
+bench_prune/check_valgrind/
