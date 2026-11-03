@@ -1,0 +1,76 @@
+N=94987 d=1369 NQ=200
+ data_rep_memory_: 0x7fefdf8a3010 data_rep_size_:457
+  inserted 0 (0s)
+build 52s shortcuts 0.0s n_shortcuts=13 maxlevel=3 RSS=713MB
+HNSW_stock           ef= 20 recall=0.8413 mean=206.6us p50=192.9 p99=402.0 upper=14.7% majflt=0
+HNSW_noprefetch      ef= 20 recall=0.8413 mean=230.7us p50=214.0 p99=450.8 upper=13.3% majflt=0
+HNSW_idea2           ef= 20 recall=0.8413 mean=203.3us p50=188.0 p99=392.5 upper=14.9% majflt=0
+SHG_original         ef= 20 recall=0.8285 mean=231.8us p50=212.9 p99=478.6 upper=5.7% majflt=0
+SHG_stock            ef= 20 recall=0.8285 mean=206.3us p50=192.1 p99=425.7 upper=6.3% majflt=0
+SHG_idea2            ef= 20 recall=0.8285 mean=205.6us p50=190.8 p99=430.1 upper=6.4% majflt=0
+SHG_noprune          ef= 20 recall=0.8333 mean=223.7us p50=213.2 p99=453.1 upper=6.2% majflt=0
+SHG_noprune_stock    ef= 20 recall=0.8333 mean=198.0us p50=183.8 p99=402.8 upper=7.0% majflt=0
+SHG_noprune_idea2    ef= 20 recall=0.8333 mean=195.4us p50=180.9 p99=394.6 upper=7.1% majflt=0
+HNSW_stock           ef= 30 recall=0.8963 mean=272.8us p50=253.9 p99=543.3 upper=12.1% majflt=0
+HNSW_noprefetch      ef= 30 recall=0.8963 mean=304.2us p50=280.8 p99=615.6 upper=10.9% majflt=0
+HNSW_idea2           ef= 30 recall=0.8963 mean=268.6us p50=249.8 p99=536.9 upper=12.4% majflt=0
+SHG_original         ef= 30 recall=0.8818 mean=312.5us p50=283.6 p99=639.1 upper=4.1% majflt=0
+SHG_stock            ef= 30 recall=0.8818 mean=281.5us p50=258.9 p99=581.3 upper=4.6% majflt=0
+SHG_idea2            ef= 30 recall=0.8818 mean=283.0us p50=259.6 p99=590.6 upper=4.6% majflt=0
+SHG_noprune          ef= 30 recall=0.8928 mean=296.2us p50=274.3 p99=605.9 upper=4.8% majflt=0
+SHG_noprune_stock    ef= 30 recall=0.8928 mean=262.7us p50=247.8 p99=534.6 upper=5.5% majflt=0
+SHG_noprune_idea2    ef= 30 recall=0.8928 mean=258.6us p50=241.2 p99=522.4 upper=5.6% majflt=0
+HNSW_stock           ef= 40 recall=0.9188 mean=324.0us p50=299.2 p99=610.0 upper=9.8% majflt=0
+HNSW_noprefetch      ef= 40 recall=0.9188 mean=361.0us p50=330.3 p99=676.9 upper=8.7% majflt=0
+HNSW_idea2           ef= 40 recall=0.9188 mean=318.4us p50=297.1 p99=598.7 upper=9.9% majflt=0
+SHG_original         ef= 40 recall=0.9088 mean=387.7us p50=353.0 p99=744.3 upper=3.3% majflt=0
+SHG_stock            ef= 40 recall=0.9088 mean=350.4us p50=320.2 p99=681.2 upper=3.7% majflt=0
+SHG_idea2            ef= 40 recall=0.9088 mean=351.6us p50=317.6 p99=684.2 upper=3.7% majflt=0
+SHG_noprune          ef= 40 recall=0.9188 mean=357.9us p50=324.5 p99=692.1 upper=4.1% majflt=0
+SHG_noprune_stock    ef= 40 recall=0.9188 mean=317.8us p50=292.4 p99=612.5 upper=4.6% majflt=0
+SHG_noprune_idea2    ef= 40 recall=0.9188 mean=312.9us p50=288.4 p99=598.4 upper=4.7% majflt=0
+HNSW_stock           ef= 60 recall=0.9440 mean=436.2us p50=416.6 p99=813.8 upper=7.4% majflt=0
+HNSW_noprefetch      ef= 60 recall=0.9440 mean=486.8us p50=460.7 p99=911.2 upper=6.9% majflt=0
+HNSW_idea2           ef= 60 recall=0.9440 mean=427.5us p50=409.1 p99=791.7 upper=7.5% majflt=0
+SHG_original         ef= 60 recall=0.9343 mean=536.6us p50=488.5 p99=1035.4 upper=2.4% majflt=0
+SHG_stock            ef= 60 recall=0.9343 mean=486.5us p50=444.3 p99=927.7 upper=2.5% majflt=0
+SHG_idea2            ef= 60 recall=0.9343 mean=488.1us p50=442.9 p99=927.8 upper=2.7% majflt=0
+SHG_noprune          ef= 60 recall=0.9425 mean=483.3us p50=447.9 p99=930.1 upper=3.2% majflt=0
+SHG_noprune_stock    ef= 60 recall=0.9425 mean=429.2us p50=396.8 p99=801.8 upper=3.6% majflt=0
+SHG_noprune_idea2    ef= 60 recall=0.9425 mean=421.4us p50=390.7 p99=792.4 upper=3.7% majflt=0
+HNSW_stock           ef= 80 recall=0.9545 mean=535.6us p50=522.8 p99=998.0 upper=6.1% majflt=0
+HNSW_noprefetch      ef= 80 recall=0.9545 mean=590.8us p50=575.0 p99=1070.2 upper=5.5% majflt=0
+HNSW_idea2           ef= 80 recall=0.9545 mean=522.8us p50=509.7 p99=950.4 upper=6.3% majflt=0
+SHG_original         ef= 80 recall=0.9460 mean=668.8us p50=645.8 p99=1246.3 upper=2.0% majflt=0
+SHG_stock            ef= 80 recall=0.9460 mean=607.8us p50=588.0 p99=1156.1 upper=2.2% majflt=0
+SHG_idea2            ef= 80 recall=0.9460 mean=611.7us p50=592.2 p99=1166.2 upper=2.2% majflt=0
+SHG_noprune          ef= 80 recall=0.9533 mean=587.8us p50=569.7 p99=1055.7 upper=2.7% majflt=0
+SHG_noprune_stock    ef= 80 recall=0.9533 mean=526.1us p50=502.9 p99=949.4 upper=3.0% majflt=0
+SHG_noprune_idea2    ef= 80 recall=0.9533 mean=517.0us p50=496.4 p99=924.2 upper=3.0% majflt=0
+HNSW_stock           ef=120 recall=0.9693 mean=715.8us p50=723.2 p99=1333.5 upper=4.7% majflt=0
+HNSW_noprefetch      ef=120 recall=0.9693 mean=791.0us p50=797.0 p99=1476.3 upper=4.2% majflt=0
+HNSW_idea2           ef=120 recall=0.9693 mean=699.4us p50=700.8 p99=1303.1 upper=4.8% majflt=0
+SHG_original         ef=120 recall=0.9635 mean=921.1us p50=917.4 p99=1706.9 upper=1.4% majflt=0
+SHG_stock            ef=120 recall=0.9635 mean=838.5us p50=838.3 p99=1555.2 upper=1.6% majflt=0
+SHG_idea2            ef=120 recall=0.9635 mean=845.6us p50=844.8 p99=1574.1 upper=1.6% majflt=0
+SHG_noprune          ef=120 recall=0.9695 mean=787.1us p50=800.9 p99=1432.9 upper=2.0% majflt=0
+SHG_noprune_stock    ef=120 recall=0.9695 mean=707.5us p50=709.7 p99=1278.0 upper=2.3% majflt=0
+SHG_noprune_idea2    ef=120 recall=0.9695 mean=697.2us p50=707.1 p99=1257.6 upper=2.3% majflt=0
+HNSW_stock           ef=200 recall=0.9800 mean=1043.4us p50=1054.4 p99=1804.7 upper=3.2% majflt=0
+HNSW_noprefetch      ef=200 recall=0.9800 mean=1142.5us p50=1154.2 p99=1974.0 upper=2.9% majflt=0
+HNSW_idea2           ef=200 recall=0.9800 mean=1022.4us p50=1028.7 p99=1777.6 upper=3.3% majflt=0
+SHG_original         ef=200 recall=0.9780 mean=1386.5us p50=1384.9 p99=2480.1 upper=1.0% majflt=0
+SHG_stock            ef=200 recall=0.9780 mean=1268.0us p50=1260.0 p99=2251.5 upper=1.1% majflt=0
+SHG_idea2            ef=200 recall=0.9780 mean=1276.2us p50=1267.3 p99=2268.1 upper=1.1% majflt=0
+SHG_noprune          ef=200 recall=0.9805 mean=1142.9us p50=1158.7 p99=1968.6 upper=1.5% majflt=0
+SHG_noprune_stock    ef=200 recall=0.9805 mean=1036.9us p50=1048.2 p99=1790.5 upper=1.6% majflt=0
+SHG_noprune_idea2    ef=200 recall=0.9805 mean=1019.4us p50=1031.5 p99=1770.3 upper=1.6% majflt=0
+HNSW_stock           ef=300 recall=0.9840 mean=1401.0us p50=1417.2 p99=2396.5 upper=2.4% majflt=0
+HNSW_noprefetch      ef=300 recall=0.9840 mean=1525.3us p50=1534.7 p99=2629.5 upper=2.2% majflt=0
+HNSW_idea2           ef=300 recall=0.9840 mean=1376.3us p50=1386.8 p99=2360.9 upper=2.5% majflt=0
+SHG_original         ef=300 recall=0.9835 mean=1908.3us p50=1925.4 p99=3287.3 upper=0.7% majflt=0
+SHG_stock            ef=300 recall=0.9835 mean=1753.1us p50=1757.8 p99=3020.8 upper=0.8% majflt=0
+SHG_idea2            ef=300 recall=0.9835 mean=1765.6us p50=1774.3 p99=3044.0 upper=0.8% majflt=0
+SHG_noprune          ef=300 recall=0.9840 mean=1522.4us p50=1523.2 p99=2625.0 upper=1.1% majflt=0
+SHG_noprune_stock    ef=300 recall=0.9840 mean=1394.3us p50=1395.2 p99=2367.4 upper=1.2% majflt=0
+SHG_noprune_idea2    ef=300 recall=0.9840 mean=1375.5us p50=1373.4 p99=2338.1 upper=1.2% majflt=0

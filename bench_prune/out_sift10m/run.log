@@ -1,0 +1,175 @@
+N=10000000 d=128 NQ=10000
+ data_rep_memory_: 0x7f7b407fb010 data_rep_size_:40
+  inserted 0 (0s)
+  inserted 100000 (17s)
+  inserted 200000 (39s)
+  inserted 300000 (62s)
+  inserted 400000 (88s)
+  inserted 500000 (114s)
+  inserted 600000 (140s)
+  inserted 700000 (167s)
+  inserted 800000 (195s)
+  inserted 900000 (224s)
+  inserted 1000000 (253s)
+  inserted 1100000 (280s)
+  inserted 1200000 (307s)
+  inserted 1300000 (334s)
+  inserted 1400000 (363s)
+  inserted 1500000 (391s)
+  inserted 1600000 (421s)
+  inserted 1700000 (452s)
+  inserted 1800000 (483s)
+  inserted 1900000 (513s)
+  inserted 2000000 (546s)
+  inserted 2100000 (577s)
+  inserted 2200000 (607s)
+  inserted 2300000 (639s)
+  inserted 2400000 (671s)
+  inserted 2500000 (704s)
+  inserted 2600000 (737s)
+  inserted 2700000 (769s)
+  inserted 2800000 (803s)
+  inserted 2900000 (839s)
+  inserted 3000000 (875s)
+  inserted 3100000 (912s)
+  inserted 3200000 (948s)
+  inserted 3300000 (983s)
+  inserted 3400000 (1019s)
+  inserted 3500000 (1056s)
+  inserted 3600000 (1092s)
+  inserted 3700000 (1127s)
+  inserted 3800000 (1163s)
+  inserted 3900000 (1197s)
+  inserted 4000000 (1233s)
+  inserted 4100000 (1267s)
+  inserted 4200000 (1303s)
+  inserted 4300000 (1341s)
+  inserted 4400000 (1378s)
+  inserted 4500000 (1416s)
+  inserted 4600000 (1456s)
+  inserted 4700000 (1494s)
+  inserted 4800000 (1533s)
+  inserted 4900000 (1572s)
+  inserted 5000000 (1613s)
+  inserted 5100000 (1652s)
+  inserted 5200000 (1690s)
+  inserted 5300000 (1728s)
+  inserted 5400000 (1767s)
+  inserted 5500000 (1806s)
+  inserted 5600000 (1845s)
+  inserted 5700000 (1885s)
+  inserted 5800000 (1926s)
+  inserted 5900000 (1966s)
+  inserted 6000000 (2006s)
+  inserted 6100000 (2053s)
+  inserted 6200000 (2100s)
+  inserted 6300000 (2147s)
+  inserted 6400000 (2191s)
+  inserted 6500000 (2236s)
+  inserted 6600000 (2283s)
+  inserted 6700000 (2331s)
+  inserted 6800000 (2375s)
+  inserted 6900000 (2424s)
+  inserted 7000000 (2472s)
+  inserted 7100000 (2517s)
+  inserted 7200000 (2562s)
+  inserted 7300000 (2609s)
+  inserted 7400000 (2655s)
+  inserted 7500000 (2697s)
+  inserted 7600000 (2739s)
+  inserted 7700000 (2782s)
+  inserted 7800000 (2823s)
+  inserted 7900000 (2868s)
+  inserted 8000000 (2913s)
+  inserted 8100000 (2960s)
+  inserted 8200000 (3010s)
+  inserted 8300000 (3055s)
+  inserted 8400000 (3101s)
+  inserted 8500000 (3151s)
+  inserted 8600000 (3198s)
+  inserted 8700000 (3246s)
+  inserted 8800000 (3291s)
+  inserted 8900000 (3339s)
+  inserted 9000000 (3384s)
+  inserted 9100000 (3436s)
+  inserted 9200000 (3481s)
+  inserted 9300000 (3531s)
+  inserted 9400000 (3575s)
+  inserted 9500000 (3619s)
+  inserted 9600000 (3663s)
+  inserted 9700000 (3707s)
+  inserted 9800000 (3751s)
+  inserted 9900000 (3794s)
+build 3837s shortcuts 2.5s n_shortcuts=299 maxlevel=4 RSS=11085MB
+HNSW_stock           ef= 20 recall=0.7670 mean=108.4us p50=107.3 p99=183.0 upper=19.1% majflt=0
+HNSW_noprefetch      ef= 20 recall=0.7670 mean=124.0us p50=123.1 p99=212.5 upper=16.9% majflt=0
+HNSW_idea2           ef= 20 recall=0.7670 mean=106.0us p50=104.8 p99=179.3 upper=20.0% majflt=0
+SHG_original         ef= 20 recall=0.7356 mean=191.3us p50=186.2 p99=355.1 upper=7.5% majflt=0
+SHG_stock            ef= 20 recall=0.7356 mean=162.0us p50=158.2 p99=297.6 upper=8.7% majflt=0
+SHG_idea2            ef= 20 recall=0.7356 mean=156.6us p50=152.2 p99=290.7 upper=8.9% majflt=0
+SHG_noprune          ef= 20 recall=0.7648 mean=169.6us p50=166.7 p99=292.4 upper=8.7% majflt=0
+SHG_noprune_stock    ef= 20 recall=0.7648 mean=136.0us p50=133.8 p99=231.3 upper=10.6% majflt=0
+SHG_noprune_idea2    ef= 20 recall=0.7648 mean=130.1us p50=127.8 p99=220.7 upper=11.2% majflt=0
+HNSW_stock           ef= 30 recall=0.8354 mean=146.7us p50=146.4 p99=240.8 upper=15.4% majflt=0
+HNSW_noprefetch      ef= 30 recall=0.8354 mean=167.4us p50=167.3 p99=276.6 upper=13.4% majflt=0
+HNSW_idea2           ef= 30 recall=0.8354 mean=145.2us p50=144.4 p99=242.5 upper=16.0% majflt=0
+SHG_original         ef= 30 recall=0.7993 mean=248.3us p50=244.8 p99=434.2 upper=5.8% majflt=0
+SHG_stock            ef= 30 recall=0.7993 mean=214.4us p50=210.6 p99=379.2 upper=6.7% majflt=0
+SHG_idea2            ef= 30 recall=0.7993 mean=215.0us p50=211.0 p99=383.8 upper=6.9% majflt=0
+SHG_noprune          ef= 30 recall=0.8353 mean=217.6us p50=216.1 p99=362.6 upper=7.1% majflt=0
+SHG_noprune_stock    ef= 30 recall=0.8353 mean=177.4us p50=175.9 p99=292.3 upper=8.7% majflt=0
+SHG_noprune_idea2    ef= 30 recall=0.8353 mean=165.6us p50=164.2 p99=271.0 upper=9.1% majflt=0
+HNSW_stock           ef= 40 recall=0.8751 mean=176.5us p50=176.6 p99=282.7 upper=12.5% majflt=0
+HNSW_noprefetch      ef= 40 recall=0.8751 mean=200.8us p50=201.4 p99=322.2 upper=10.9% majflt=0
+HNSW_idea2           ef= 40 recall=0.8751 mean=167.3us p50=167.7 p99=266.1 upper=13.1% majflt=0
+SHG_original         ef= 40 recall=0.8412 mean=302.7us p50=300.4 p99=515.6 upper=4.6% majflt=0
+SHG_stock            ef= 40 recall=0.8412 mean=256.6us p50=254.1 p99=439.8 upper=5.3% majflt=0
+SHG_idea2            ef= 40 recall=0.8412 mean=254.1us p50=251.5 p99=438.2 upper=5.4% majflt=0
+SHG_noprune          ef= 40 recall=0.8751 mean=256.6us p50=256.4 p99=416.9 upper=5.8% majflt=0
+SHG_noprune_stock    ef= 40 recall=0.8751 mean=208.4us p50=208.5 p99=333.1 upper=7.1% majflt=0
+SHG_noprune_idea2    ef= 40 recall=0.8751 mean=196.0us p50=195.7 p99=311.9 upper=7.5% majflt=0
+HNSW_stock           ef= 60 recall=0.9205 mean=233.5us p50=236.5 p99=365.5 upper=9.3% majflt=0
+HNSW_noprefetch      ef= 60 recall=0.9205 mean=271.9us p50=274.9 p99=428.0 upper=8.1% majflt=0
+HNSW_idea2           ef= 60 recall=0.9205 mean=221.9us p50=224.6 p99=347.0 upper=9.8% majflt=0
+SHG_original         ef= 60 recall=0.8918 mean=401.6us p50=402.2 p99=660.7 upper=3.3% majflt=0
+SHG_stock            ef= 60 recall=0.8918 mean=341.9us p50=343.1 p99=567.3 upper=3.9% majflt=0
+SHG_idea2            ef= 60 recall=0.8918 mean=338.4us p50=338.8 p99=561.6 upper=3.9% majflt=0
+SHG_noprune          ef= 60 recall=0.9205 mean=333.3us p50=336.2 p99=526.5 upper=4.5% majflt=0
+SHG_noprune_stock    ef= 60 recall=0.9205 mean=270.1us p50=272.3 p99=420.4 upper=5.5% majflt=0
+SHG_noprune_idea2    ef= 60 recall=0.9205 mean=254.7us p50=256.7 p99=394.3 upper=5.8% majflt=0
+HNSW_stock           ef= 80 recall=0.9441 mean=303.7us p50=308.3 p99=473.7 upper=7.5% majflt=0
+HNSW_noprefetch      ef= 80 recall=0.9441 mean=351.8us p50=356.7 p99=547.3 upper=6.5% majflt=0
+HNSW_idea2           ef= 80 recall=0.9441 mean=287.1us p50=291.3 p99=445.7 upper=7.9% majflt=0
+SHG_original         ef= 80 recall=0.9207 mean=522.9us p50=525.9 p99=844.7 upper=2.7% majflt=0
+SHG_stock            ef= 80 recall=0.9207 mean=440.7us p50=442.8 p99=712.2 upper=3.1% majflt=0
+SHG_idea2            ef= 80 recall=0.9207 mean=442.9us p50=443.8 p99=723.0 upper=3.1% majflt=0
+SHG_noprune          ef= 80 recall=0.9442 mean=422.5us p50=426.4 p99=663.0 upper=3.6% majflt=0
+SHG_noprune_stock    ef= 80 recall=0.9442 mean=341.5us p50=345.2 p99=525.9 upper=4.5% majflt=0
+SHG_noprune_idea2    ef= 80 recall=0.9442 mean=325.2us p50=328.6 p99=500.0 upper=4.8% majflt=0
+HNSW_stock           ef=120 recall=0.9683 mean=418.3us p50=425.9 p99=644.7 upper=5.4% majflt=0
+HNSW_noprefetch      ef=120 recall=0.9683 mean=484.9us p50=493.6 p99=750.4 upper=4.6% majflt=0
+HNSW_idea2           ef=120 recall=0.9683 mean=395.5us p50=402.4 p99=608.0 upper=5.7% majflt=0
+SHG_original         ef=120 recall=0.9516 mean=723.1us p50=730.4 p99=1153.6 upper=1.9% majflt=0
+SHG_stock            ef=120 recall=0.9516 mean=609.2us p50=616.5 p99=971.4 upper=2.2% majflt=0
+SHG_idea2            ef=120 recall=0.9516 mean=609.5us p50=615.9 p99=972.8 upper=2.2% majflt=0
+SHG_noprune          ef=120 recall=0.9685 mean=565.1us p50=572.9 p99=888.4 upper=2.7% majflt=0
+SHG_noprune_stock    ef=120 recall=0.9685 mean=458.7us p50=467.0 p99=705.7 upper=3.3% majflt=0
+SHG_noprune_idea2    ef=120 recall=0.9685 mean=433.5us p50=440.3 p99=663.4 upper=3.6% majflt=0
+HNSW_stock           ef=200 recall=0.9854 mean=656.9us p50=671.2 p99=1014.6 upper=3.5% majflt=0
+HNSW_noprefetch      ef=200 recall=0.9854 mean=764.0us p50=778.0 p99=1184.5 upper=3.0% majflt=0
+HNSW_idea2           ef=200 recall=0.9854 mean=624.6us p50=637.1 p99=962.4 upper=3.7% majflt=0
+SHG_original         ef=200 recall=0.9760 mean=1149.2us p50=1164.3 p99=1805.7 upper=1.2% majflt=0
+SHG_stock            ef=200 recall=0.9760 mean=975.4us p50=990.1 p99=1536.3 upper=1.4% majflt=0
+SHG_idea2            ef=200 recall=0.9760 mean=975.7us p50=989.4 p99=1541.7 upper=1.4% majflt=0
+SHG_noprune          ef=200 recall=0.9854 mean=868.0us p50=880.9 p99=1358.7 upper=1.8% majflt=0
+SHG_noprune_stock    ef=200 recall=0.9854 mean=707.1us p50=720.6 p99=1083.2 upper=2.3% majflt=0
+SHG_noprune_idea2    ef=200 recall=0.9854 mean=669.0us p50=681.3 p99=1017.3 upper=2.4% majflt=0
+HNSW_stock           ef=300 recall=0.9925 mean=958.4us p50=979.2 p99=1490.3 upper=2.5% majflt=0
+HNSW_noprefetch      ef=300 recall=0.9925 mean=1109.2us p50=1129.7 p99=1726.0 upper=2.1% majflt=0
+HNSW_idea2           ef=300 recall=0.9925 mean=908.3us p50=926.3 p99=1400.6 upper=2.6% majflt=0
+SHG_original         ef=300 recall=0.9871 mean=1694.7us p50=1716.1 p99=2661.8 upper=0.9% majflt=0
+SHG_stock            ef=300 recall=0.9871 mean=1447.3us p50=1468.6 p99=2264.5 upper=1.0% majflt=0
+SHG_idea2            ef=300 recall=0.9871 mean=1458.6us p50=1478.5 p99=2298.7 upper=1.0% majflt=0
+SHG_noprune          ef=300 recall=0.9925 mean=1241.2us p50=1259.7 p99=1954.9 upper=1.4% majflt=0
+SHG_noprune_stock    ef=300 recall=0.9925 mean=1013.3us p50=1032.8 p99=1561.3 upper=1.7% majflt=0
+SHG_noprune_idea2    ef=300 recall=0.9925 mean=968.1us p50=987.6 p99=1483.0 upper=1.8% majflt=0
