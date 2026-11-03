@@ -27,12 +27,12 @@ plt.style.use('seaborn-v0_8-whitegrid' if 'seaborn-v0_8-whitegrid' in plt.style.
 
 def grid():
     nr = (len(DATASETS) + 1) // 2
-    fig, ax = plt.subplots(nr, 2, figsize=(15, 5.8 * nr), dpi=200, squeeze=False)
+    fig, ax = plt.subplots(nr, 2, figsize=(17, 5.8 * nr), dpi=200, squeeze=False)
     for a in ax.flat[len(DATASETS):]: a.set_visible(False)
     return fig, ax.flat
 
 # ---------------- Figure 5: where the time per distance evaluation goes ----------------
-BARS = [('HNSW_noprefetch', 'HNSW\nno prefetch'), ('HNSW_stock', 'HNSW\nstock prefetch'),
+BARS = [('HNSW_noprefetch', 'HNSW\nno prefetch'), ('HNSW_stock', 'HNSW\nstock prefetch'), ('HNSW_idea2', 'HNSW +\nIdea 2'),
         ('SHG_original', 'SHG\nas published'), ('SHG_stock', 'SHG +\nstock prefetch'), ('SHG_idea2', 'SHG +\nIdea 2')]
 fig, axes = grid()
 rows = []
@@ -50,7 +50,7 @@ for a, (k, title) in zip(axes, DATASETS):
         a.text(x, bottom * 1.01, f'{tot:.0f}', ha='center', va='bottom', fontsize=9, fontweight='bold')
         rows.append(dict(dataset=k, method=m, ef=EF, stall_cyc=r.stall_cyc_per_eval, compute_cyc=r.compute_cyc_per_eval,
                          overhead_cyc=r.overhead_cyc_per_eval, total_cyc=tot, stall_pct=100 * max(r.stall_cyc_per_eval, 0) / tot))
-    a.axvline(1.5, color='grey', ls=':', lw=1.2)
+    a.axvline(2.5, color='grey', ls=':', lw=1.2)
     a.set_xticks(range(len(BARS))); a.set_xticklabels([b[1] for b in BARS], fontsize=9.5, fontweight='bold')
     a.set_title(f'{title}\nDRAM latency {d.dram_latency_cyc.iloc[0]:.0f} cyc, core {d.core_ghz.iloc[0]:.2f} GHz', fontweight='bold')
     a.set_ylabel('Core cycles per distance evaluation', fontweight='bold'); a.set_ylim(0, a.get_ylim()[1] * 1.08)
