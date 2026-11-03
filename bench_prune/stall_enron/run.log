@@ -1,0 +1,19 @@
+N=94987 d=1369 NQ=200
+ data_rep_memory_: 0x7fda96b25010 data_rep_size_:457
+  inserted 0 (0s)
+build 52s shortcuts 0.0s n_shortcuts=13 maxlevel=3 RSS=713MB
+core clock 2.411 GHz, TSC 2.496 GHz
+DRAM dependent-load latency 293 core cycles
+distance compute (cache-resident) 301.1 core cycles
+SHG_original     ef= 20 evals/q=437 cold=1258 warm=938 stall=320 compute=301 overhead=637 cyc/eval
+SHG_stock        ef= 20 evals/q=437 cold=1103 warm=857 stall=246 compute=301 overhead=556 cyc/eval
+SHG_idea2        ef= 20 evals/q=437 cold=1093 warm=860 stall=233 compute=301 overhead=558 cyc/eval
+HNSW_noprefetch  ef= 20 evals/q=427 cold=1187 warm=864 stall=323 compute=301 overhead=563 cyc/eval
+HNSW_stock       ef= 20 evals/q=427 cold=1026 warm=788 stall=239 compute=301 overhead=486 cyc/eval
+HNSW_idea2       ef= 20 evals/q=427 cold=1004 warm=785 stall=219 compute=301 overhead=484 cyc/eval
+SHG_original     ef=100 evals/q=1331 cold=1484 warm=1322 stall=162 compute=301 overhead=1021 cyc/eval
+SHG_stock        ef=100 evals/q=1331 cold=1327 warm=1197 stall=130 compute=301 overhead=896 cyc/eval
+SHG_idea2        ef=100 evals/q=1331 cold=1338 warm=1204 stall=134 compute=301 overhead=903 cyc/eval
+HNSW_noprefetch  ef=100 evals/q=1369 cold=1221 warm=1077 stall=144 compute=301 overhead=776 cyc/eval
+HNSW_stock       ef=100 evals/q=1369 cold=1083 warm=968 stall=115 compute=301 overhead=667 cyc/eval
+HNSW_idea2       ef=100 evals/q=1369 cold=1051 warm=948 stall=104 compute=301 overhead=647 cyc/eval
