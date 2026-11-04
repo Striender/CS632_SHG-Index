@@ -16,9 +16,11 @@ DATASETS = [('enron', 'Enron (d=1,369, N=95K)'), ('gist', 'GIST1M (d=960, N=1M)'
             ('sift', 'SIFT1M (d=128, N=1M)'), ('sift10m', 'SIFT10M (d=128, N=10M)')]
 data = {}; full = {}
 for k, _ in DATASETS:
-    f = f'bench_prune/stall2_{k}/stall.csv'
+    f, f2 = f'bench_prune/stall4_{k}/stall.csv', f'bench_prune/stall2_{k}/stall.csv'   # stall4: corrected clock calibration
+    if os.path.exists(f2): full[k] = pd.read_csv(f2)   # lookahead sweep L=2..5 (speedups only, clock-independent)
+    if not os.path.exists(f): f = f2
     if os.path.exists(f):
-        d = pd.read_csv(f); full[k] = d.copy()
+        d = pd.read_csv(f)
         d = d[d.ef == EF].copy(); d['method'] = d.method.replace({'SHG_idea2_L2': 'SHG_idea2', 'HNSW_idea2_L2': 'HNSW_idea2'})
         data[k] = d.set_index('method')
 DATASETS = [(k, t) for k, t in DATASETS if k in data]
