@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <cstdlib>
@@ -21,7 +22,8 @@ enum class PrefetchMode {
     STEP1_SKIP = 1,
     STEP2_SKIP_LOOKAHEAD = 2,
     STEP3_CLUSTER = 3,
-    STOCK_HNSW = 4   // hnswlib's original prefetch lines only (reference behaviour)
+    STOCK_HNSW = 4,  // hnswlib's original prefetch lines only (reference behaviour)
+    IDEA2_V2 = 5     // Idea 2.0: warm-up + lookahead j+D + optional visited filter (see v2_* below)
 };
 
 // Global helper: prefetch contiguous memory across 64-byte cache lines
@@ -53,11 +55,19 @@ public:
     static inline bool enable_cluster_prefetch = true;   // Step 3: Cluster-aware prefetch
     static inline bool enable_stock_prefetch = false;
     static inline size_t lookahead_lines = 3;            // Idea 2: cache lines of the vector to prefetch (3 = original; huge = whole vector)
-    static inline size_t lookahead_dist = 2;             // Idea 2: prefetch the neighbour this many slots ahead    // hnswlib stock prefetch (1-ahead neighbour + next candidate)
+    static inline size_t lookahead_dist = 2;             // Idea 2: prefetch the neighbour this many slots ahead
+    // ---- Idea 2.0 knobs (used only in IDEA2_V2 mode) ----
+    static inline bool   enable_v2   = false;
+    static inline size_t v2_dist     = 2;     // steady state: while at neighbour j, prefetch neighbour j+D
+    static inline size_t v2_lines    = 3;     // cache lines of each neighbour vector to prefetch
+    static inline bool   v2_warmup   = true;  // before the loop, prefetch neighbours 1..D (they are never j+D)
+    static inline bool   v2_filter   = false; // prefetch visited flag at j+2D, then vector at j+D only if not visited
+    static inline bool   v2_push_ll  = true;  // stock: prefetch link list of the best candidate after each push
     static inline std::string custom_mode_name = "";
 
     static inline void set_mode(PrefetchMode mode) {
         enable_stock_prefetch = false;
+        enable_v2 = false;
         switch (mode) {
             case PrefetchMode::STOCK_HNSW:
                 enable_skip_prefetch = false;
@@ -87,6 +97,14 @@ public:
                 enable_cluster_prefetch = false;
                 ClusterPrefetcher::enable_cluster_prefetch = false;
                 custom_mode_name = "step2_skip_lookahead_prefetch";
+                break;
+            case PrefetchMode::IDEA2_V2:
+                enable_skip_prefetch = true;       // Idea 1 (shortcut landing) stays on; SHG only
+                enable_lookahead_prefetch = false; // old Idea 2 hook off
+                enable_cluster_prefetch = false;
+                ClusterPrefetcher::enable_cluster_prefetch = false;
+                enable_v2 = true;
+                custom_mode_name = "idea2_v2";
                 break;
             case PrefetchMode::STEP3_CLUSTER:
                 enable_skip_prefetch = true;
@@ -205,11 +223,55 @@ public:
         uint32_t next_node_id,
         GetLinkList0Fn&& get_linklist0_fn
     ) {
-        if (!enable_lookahead_prefetch) return;
+        if (!enable_lookahead_prefetch && !enable_v2) return;
 
         void* linklist = get_linklist0_fn(next_node_id);
         if (linklist) {
             prefetch_range(linklist, 128, 2);
+        }
+    }
+
+    /**
+     * Idea 2.0, warm-up: neighbours 1..D are never "j+D" for any j, so prefetch them before the loop.
+     * No visited filter here: their flags are not in cache yet, and reading them would stall.
+     */
+    template <typename VlType, typename GetVectorFn>
+    static inline void v2_prologue(const int* data, size_t size, const VlType* visited,
+                                   GetVectorFn&& get_vector_fn, size_t bytes) {
+        if (!enable_v2 || !v2_warmup) return;
+        size_t last = std::min(v2_dist, size);
+        size_t flags_to = v2_filter ? std::min(2 * v2_dist, size) : last;
+        for (size_t k = 1; k <= flags_to; k++) HNSW_PREFETCH_T0(&visited[*(data + k)]);
+        for (size_t k = 1; k <= last; k++) {
+            int id = *(data + k);
+            prefetch_range(get_vector_fn(id), bytes, v2_lines);
+        }
+    }
+
+    /**
+     * Idea 2.0, steady state at neighbour j (1-based):
+     *   no filter: prefetch flag + vector of j+D
+     *   filter   : prefetch flag of j+2D; read flag of j+D (prefetched D steps ago) and
+     *              prefetch its vector only if it is not visited yet
+     */
+    template <typename VlType, typename GetVectorFn>
+    static inline void v2_step(const int* data, size_t j, size_t size, const VlType* visited, VlType tag,
+                               GetVectorFn&& get_vector_fn, size_t bytes) {
+        if (!enable_v2) return;
+        size_t k = j + v2_dist;
+        if (v2_filter) {
+            size_t f = j + 2 * v2_dist;
+            if (f <= size) HNSW_PREFETCH_T0(&visited[*(data + f)]);
+            if (k <= size) {
+                int id = *(data + k);
+                if (visited[id] != tag) {
+                    prefetch_range(get_vector_fn(id), bytes, v2_lines);
+                }
+            }
+        } else if (k <= size) {
+            int id = *(data + k);
+            HNSW_PREFETCH_T0(&visited[id]);
+            prefetch_range(get_vector_fn(id), bytes, v2_lines);
         }
     }
 };

@@ -34,7 +34,7 @@ int main(int argc,char**argv){
 
   // ---- 1. core clock: dependent add chain retires 1 iteration / core cycle
   auto core_ghz=[&]{ const uint64_t n=2000000000ULL; uint64_t x=0, c=n; auto t=chrono::steady_clock::now();
-    asm volatile("1: add $1, %0\n\t dec %1\n\t jnz 1b" : "+r"(x), "+r"(c));
+    asm volatile(".p2align 6\n\t" "1: add $1, %0\n\t dec %1\n\t jnz 1b" : "+r"(x), "+r"(c));  // aligned: a loop crossing a 32-byte boundary runs ~1.7 cycles/iter and under-reads the clock
     return n/chrono::duration<double>(chrono::steady_clock::now()-t).count()/1e9; };
   double ghz=core_ghz(); double cyc_per_tsc=ghz*1e9/hz;
   printf("core clock %.3f GHz, TSC %.3f GHz\n",ghz,hz/1e9); fflush(stdout);
@@ -50,11 +50,18 @@ int main(int argc,char**argv){
     for(int i=0;i<R;i++) acc+=g_real(q,v[i&7],sp.get_dist_func_param()); auto b=__rdtsc(); comp_cyc=(b-a)*cyc_per_tsc/R; if(acc==1.2345f) printf("."); }
   printf("distance compute (cache-resident) %.1f core cycles\n",comp_cyc); fflush(stdout);
   // ---- 4. real search: base layer only, cold run then warm rerun of the same query
-  struct M{string name; int abl; hnswlib::PrefetchMode pm; bool hnsw; int la; size_t lines=3;};
+  struct M{string name; int abl; hnswlib::PrefetchMode pm; bool hnsw; int la; size_t lines=3; int v2=-1;};
   // Idea 2 lookahead distance L: while scanning neighbour j, prefetch neighbour j+L (visited flag + first 3 cache lines of its vector)
   vector<M> ms={{"SHG_original",0,hnswlib::PrefetchMode::BASELINE,false,2},{"SHG_stock",0,hnswlib::PrefetchMode::STOCK_HNSW,false,2},
                 {"HNSW_noprefetch",0,hnswlib::PrefetchMode::BASELINE,true,2},{"HNSW_stock",0,hnswlib::PrefetchMode::STOCK_HNSW,true,2}};
-#ifdef FULLVEC
+#if defined(IDEA2V2)
+  // Idea 2.0 variants: {dist D, lines, warm-up, visited filter}
+  struct V2{const char* tag; size_t d, lines; bool pro, filt;};
+  static const V2 V2S[]={{"v2_basic",2,3,true,false},{"v2_filter",2,3,true,true}};
+  ms.push_back({"SHG_idea2_L2",0,hnswlib::PrefetchMode::STEP2_SKIP_LOOKAHEAD,false,2}); ms.push_back({"HNSW_idea2_L2",0,hnswlib::PrefetchMode::STEP2_SKIP_LOOKAHEAD,true,2});
+  for(int v=0;v<2;v++){ ms.push_back({string("SHG_")+V2S[v].tag,0,hnswlib::PrefetchMode::IDEA2_V2,false,2,3,v});
+                        ms.push_back({string("HNSW_")+V2S[v].tag,0,hnswlib::PrefetchMode::IDEA2_V2,true,2,3,v}); }
+#elif defined(FULLVEC)
   // whole-vector variant: same lookahead hook, but every cache line of the neighbour's vector is prefetched
   ms.push_back({"SHG_idea2_L2",0,hnswlib::PrefetchMode::STEP2_SKIP_LOOKAHEAD,false,2}); ms.push_back({"HNSW_idea2_L2",0,hnswlib::PrefetchMode::STEP2_SKIP_LOOKAHEAD,true,2});
   for(int L=1;L<=3;L++){ ms.push_back({"SHG_full_L"+to_string(L),0,hnswlib::PrefetchMode::STEP2_SKIP_LOOKAHEAD,false,L,(size_t)1<<20});
@@ -64,7 +71,11 @@ int main(int argc,char**argv){
                          ms.push_back({"HNSW_idea2_L"+to_string(L),0,hnswlib::PrefetchMode::STEP2_SKIP_LOOKAHEAD,true,L}); }
 #endif
   int NM=ms.size(); const int P2=3;
-  vector<int> ids_tmp; auto run=[&](M& m,int i){ g_abl=m.abl; hnswlib::PrefetchController::set_mode(m.pm); hnswlib::PrefetchController::lookahead_dist=m.la; hnswlib::PrefetchController::lookahead_lines=m.lines; Query q(N+i,K);
+  vector<int> ids_tmp; auto run=[&](M& m,int i){ g_abl=m.abl; hnswlib::PrefetchController::set_mode(m.pm); hnswlib::PrefetchController::lookahead_dist=m.la; hnswlib::PrefetchController::lookahead_lines=m.lines;
+#if defined(IDEA2V2)
+    if(m.v2>=0){ auto& c=V2S[m.v2]; using PC=hnswlib::PrefetchController; PC::v2_dist=c.d; PC::v2_lines=c.lines; PC::v2_warmup=c.pro; PC::v2_filter=c.filt; PC::v2_push_ll=true; }
+#endif
+    Query q(N+i,K);
     auto a=__rdtsc(); auto r = m.hnsw ? S->searchKnnHNSW(q) : S->searchKnnShortcuts(q); auto b=__rdtsc();
     ids_tmp.clear(); while(!r.empty()){ ids_tmp.push_back((int)r.top().second); r.pop(); } sort(ids_tmp.begin(),ids_tmp.end());
     for(size_t x:g_touched) S->resultsProcessing[x]=-1; g_touched.clear(); return make_pair((double)(b-g_tsc_split),(double)S->baseNumDis); };

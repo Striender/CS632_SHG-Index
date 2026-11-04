@@ -1,0 +1,154 @@
+N=10000000 d=128 NQ=10000
+ data_rep_memory_: 0x7fb814e84010 data_rep_size_:40
+  inserted 0 (0s)
+  inserted 100000 (8s)
+  inserted 200000 (22s)
+  inserted 300000 (37s)
+  inserted 400000 (54s)
+  inserted 500000 (71s)
+  inserted 600000 (88s)
+  inserted 700000 (105s)
+  inserted 800000 (123s)
+  inserted 900000 (142s)
+  inserted 1000000 (162s)
+  inserted 1100000 (181s)
+  inserted 1200000 (200s)
+  inserted 1300000 (219s)
+  inserted 1400000 (239s)
+  inserted 1500000 (259s)
+  inserted 1600000 (280s)
+  inserted 1700000 (302s)
+  inserted 1800000 (324s)
+  inserted 1900000 (346s)
+  inserted 2000000 (369s)
+  inserted 2100000 (391s)
+  inserted 2200000 (414s)
+  inserted 2300000 (436s)
+  inserted 2400000 (459s)
+  inserted 2500000 (483s)
+  inserted 2600000 (506s)
+  inserted 2700000 (530s)
+  inserted 2800000 (554s)
+  inserted 2900000 (578s)
+  inserted 3000000 (602s)
+  inserted 3100000 (625s)
+  inserted 3200000 (650s)
+  inserted 3300000 (674s)
+  inserted 3400000 (700s)
+  inserted 3500000 (725s)
+  inserted 3600000 (750s)
+  inserted 3700000 (775s)
+  inserted 3800000 (800s)
+  inserted 3900000 (825s)
+  inserted 4000000 (852s)
+  inserted 4100000 (876s)
+  inserted 4200000 (903s)
+  inserted 4300000 (930s)
+  inserted 4400000 (957s)
+  inserted 4500000 (985s)
+  inserted 4600000 (1012s)
+  inserted 4700000 (1039s)
+  inserted 4800000 (1068s)
+  inserted 4900000 (1096s)
+  inserted 5000000 (1124s)
+  inserted 5100000 (1151s)
+  inserted 5200000 (1178s)
+  inserted 5300000 (1206s)
+  inserted 5400000 (1234s)
+  inserted 5500000 (1262s)
+  inserted 5600000 (1291s)
+  inserted 5700000 (1320s)
+  inserted 5800000 (1350s)
+  inserted 5900000 (1380s)
+  inserted 6000000 (1409s)
+  inserted 6100000 (1439s)
+  inserted 6200000 (1468s)
+  inserted 6300000 (1497s)
+  inserted 6400000 (1526s)
+  inserted 6500000 (1554s)
+  inserted 6600000 (1584s)
+  inserted 6700000 (1614s)
+  inserted 6800000 (1643s)
+  inserted 6900000 (1672s)
+  inserted 7000000 (1700s)
+  inserted 7100000 (1727s)
+  inserted 7200000 (1753s)
+  inserted 7300000 (1780s)
+  inserted 7400000 (1808s)
+  inserted 7500000 (1835s)
+  inserted 7600000 (1862s)
+  inserted 7700000 (1889s)
+  inserted 7800000 (1916s)
+  inserted 7900000 (1944s)
+  inserted 8000000 (1972s)
+  inserted 8100000 (2001s)
+  inserted 8200000 (2028s)
+  inserted 8300000 (2055s)
+  inserted 8400000 (2082s)
+  inserted 8500000 (2110s)
+  inserted 8600000 (2138s)
+  inserted 8700000 (2165s)
+  inserted 8800000 (2193s)
+  inserted 8900000 (2220s)
+  inserted 9000000 (2247s)
+  inserted 9100000 (2276s)
+  inserted 9200000 (2303s)
+  inserted 9300000 (2331s)
+  inserted 9400000 (2359s)
+  inserted 9500000 (2387s)
+  inserted 9600000 (2414s)
+  inserted 9700000 (2443s)
+  inserted 9800000 (2470s)
+  inserted 9900000 (2498s)
+build 2526s shortcuts 1.5s n_shortcuts=299 maxlevel=4 RSS=11085MB
+core clock 4.570 GHz, TSC 2.496 GHz
+DRAM dependent-load latency 436 core cycles
+distance compute (cache-resident) 25.7 core cycles
+SHG_original     ef= 20 evals/q=864 cold=627 warm=394 stall=234 compute=26 overhead=368 cyc/eval
+SHG_stock        ef= 20 evals/q=864 cold=522 warm=338 stall=184 compute=26 overhead=312 cyc/eval
+HNSW_noprefetch  ef= 20 evals/q=745 cold=461 warm=184 stall=277 compute=26 overhead=158 cyc/eval
+HNSW_stock       ef= 20 evals/q=745 cold=383 warm=167 stall=216 compute=26 overhead=141 cyc/eval
+SHG_idea2_L2     ef= 20 evals/q=864 cold=514 warm=330 stall=184 compute=26 overhead=304 cyc/eval
+HNSW_idea2_L2    ef= 20 evals/q=745 cold=371 warm=166 stall=205 compute=26 overhead=140 cyc/eval
+SHG_v2_basic     ef= 20 evals/q=864 cold=515 warm=333 stall=182 compute=26 overhead=307 cyc/eval
+HNSW_v2_basic    ef= 20 evals/q=745 cold=369 warm=167 stall=202 compute=26 overhead=141 cyc/eval
+SHG_v2_filter    ef= 20 evals/q=864 cold=520 warm=337 stall=183 compute=26 overhead=311 cyc/eval
+HNSW_v2_filter   ef= 20 evals/q=745 cold=371 warm=168 stall=202 compute=26 overhead=143 cyc/eval
+SHG_v2_filter_D3 ef= 20 evals/q=864 cold=522 warm=343 stall=180 compute=26 overhead=317 cyc/eval
+HNSW_v2_filter_D3 ef= 20 evals/q=745 cold=355 warm=165 stall=190 compute=26 overhead=139 cyc/eval
+SHG_v2_filter_8l ef= 20 evals/q=864 cold=531 warm=338 stall=193 compute=26 overhead=312 cyc/eval
+HNSW_v2_filter_8l ef= 20 evals/q=745 cold=376 warm=162 stall=214 compute=26 overhead=137 cyc/eval
+SHG_v2_edges     ef= 20 evals/q=864 cold=584 warm=403 stall=181 compute=26 overhead=377 cyc/eval
+HNSW_v2_edges    ef= 20 evals/q=745 cold=427 warm=217 stall=210 compute=26 overhead=191 cyc/eval
+SHG_original     ef= 64 evals/q=1788 cold=740 warm=586 stall=155 compute=26 overhead=560 cyc/eval
+SHG_stock        ef= 64 evals/q=1788 cold=632 warm=503 stall=129 compute=26 overhead=477 cyc/eval
+HNSW_noprefetch  ef= 64 evals/q=1862 cold=477 warm=327 stall=149 compute=26 overhead=302 cyc/eval
+HNSW_stock       ef= 64 evals/q=1862 cold=402 warm=284 stall=118 compute=26 overhead=258 cyc/eval
+SHG_idea2_L2     ef= 64 evals/q=1788 cold=633 warm=499 stall=135 compute=26 overhead=473 cyc/eval
+HNSW_idea2_L2    ef= 64 evals/q=1862 cold=389 warm=277 stall=112 compute=26 overhead=251 cyc/eval
+SHG_v2_basic     ef= 64 evals/q=1788 cold=650 warm=513 stall=137 compute=26 overhead=487 cyc/eval
+HNSW_v2_basic    ef= 64 evals/q=1862 cold=386 warm=276 stall=110 compute=26 overhead=251 cyc/eval
+SHG_v2_filter    ef= 64 evals/q=1788 cold=641 warm=522 stall=119 compute=26 overhead=497 cyc/eval
+HNSW_v2_filter   ef= 64 evals/q=1862 cold=384 warm=283 stall=100 compute=26 overhead=257 cyc/eval
+SHG_v2_filter_D3 ef= 64 evals/q=1788 cold=646 warm=525 stall=121 compute=26 overhead=499 cyc/eval
+HNSW_v2_filter_D3 ef= 64 evals/q=1862 cold=369 warm=276 stall=93 compute=26 overhead=250 cyc/eval
+SHG_v2_filter_8l ef= 64 evals/q=1788 cold=645 warm=516 stall=129 compute=26 overhead=490 cyc/eval
+HNSW_v2_filter_8l ef= 64 evals/q=1862 cold=389 warm=281 stall=109 compute=26 overhead=255 cyc/eval
+SHG_v2_edges     ef= 64 evals/q=1788 cold=709 warm=584 stall=125 compute=26 overhead=558 cyc/eval
+HNSW_v2_edges    ef= 64 evals/q=1862 cold=439 warm=338 stall=101 compute=26 overhead=312 cyc/eval
+SHG_original     ef=100 evals/q=2522 cold=792 warm=635 stall=158 compute=26 overhead=609 cyc/eval
+SHG_stock        ef=100 evals/q=2522 cold=673 warm=541 stall=132 compute=26 overhead=516 cyc/eval
+HNSW_noprefetch  ef=100 evals/q=2711 cold=490 warm=366 stall=124 compute=26 overhead=341 cyc/eval
+HNSW_stock       ef=100 evals/q=2711 cold=417 warm=313 stall=104 compute=26 overhead=287 cyc/eval
+SHG_idea2_L2     ef=100 evals/q=2522 cold=688 warm=545 stall=143 compute=26 overhead=519 cyc/eval
+HNSW_idea2_L2    ef=100 evals/q=2711 cold=402 warm=303 stall=99 compute=26 overhead=277 cyc/eval
+SHG_v2_basic     ef=100 evals/q=2522 cold=688 warm=545 stall=143 compute=26 overhead=519 cyc/eval
+HNSW_v2_basic    ef=100 evals/q=2711 cold=396 warm=299 stall=98 compute=26 overhead=273 cyc/eval
+SHG_v2_filter    ef=100 evals/q=2522 cold=680 warm=564 stall=116 compute=26 overhead=538 cyc/eval
+HNSW_v2_filter   ef=100 evals/q=2711 cold=398 warm=319 stall=79 compute=26 overhead=293 cyc/eval
+SHG_v2_filter_D3 ef=100 evals/q=2522 cold=679 warm=563 stall=116 compute=26 overhead=538 cyc/eval
+HNSW_v2_filter_D3 ef=100 evals/q=2711 cold=379 warm=308 stall=71 compute=26 overhead=282 cyc/eval
+SHG_v2_filter_8l ef=100 evals/q=2522 cold=690 warm=560 stall=130 compute=26 overhead=534 cyc/eval
+HNSW_v2_filter_8l ef=100 evals/q=2711 cold=403 warm=316 stall=87 compute=26 overhead=290 cyc/eval
+SHG_v2_edges     ef=100 evals/q=2522 cold=753 warm=626 stall=127 compute=26 overhead=600 cyc/eval
+HNSW_v2_edges    ef=100 evals/q=2711 cold=451 warm=367 stall=83 compute=26 overhead=342 cyc/eval

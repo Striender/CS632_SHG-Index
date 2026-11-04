@@ -813,6 +813,8 @@ class HEDS : public AlgorithmInterface<dist_t> {
 
 
 
+            PrefetchController::v2_prologue(data, size, visited_array,     // Idea 2.0 warm-up
+                [this](tableint id) -> void* { return (void*)getDataByInternalId(id); }, data_size_);
             if (PrefetchController::enable_stock_prefetch && size > 0) {  // hnswlib stock
                 _mm_prefetch((char *) (visited_array + *(data + 1)), _MM_HINT_T0);
                 _mm_prefetch((char *) (visited_array + *(data + 1) + 64), _MM_HINT_T0);
@@ -836,6 +838,8 @@ class HEDS : public AlgorithmInterface<dist_t> {
                     data_size_,
                     PrefetchController::lookahead_dist
                 );
+                PrefetchController::v2_step(data, j, size, visited_array, visited_array_tag,   // Idea 2.0
+                    [this](tableint id) -> void* { return (void*)getDataByInternalId(id); }, data_size_);
 //                    if (candidate_id == 0) continue;
 
                 if (!(visited_array[candidate_id] == visited_array_tag)) {
@@ -855,7 +859,7 @@ class HEDS : public AlgorithmInterface<dist_t> {
 
                     if (flag_consider_candidate) {
                         candidate_set.emplace(-dist, candidate_id);
-                        if (PrefetchController::enable_stock_prefetch)  // hnswlib stock
+                        if (PrefetchController::enable_stock_prefetch || (PrefetchController::enable_v2 && PrefetchController::v2_push_ll))  // stock / Idea 2.0
                             _mm_prefetch((char *) get_linklist0(candidate_set.top().second), _MM_HINT_T0);
 
                         if (bare_bone_search || 
@@ -983,6 +987,8 @@ class HEDS : public AlgorithmInterface<dist_t> {
             hops++;
             
 
+            PrefetchController::v2_prologue(data, size, visited_array,     // Idea 2.0 warm-up
+                [this](tableint id) -> void* { return (void*)getDataByInternalId(id); }, data_size_);
             if (PrefetchController::enable_stock_prefetch && size > 0) {  // hnswlib stock
                 _mm_prefetch((char *) (visited_array + *(data + 1)), _MM_HINT_T0);
                 _mm_prefetch((char *) (visited_array + *(data + 1) + 64), _MM_HINT_T0);
@@ -1006,6 +1012,8 @@ class HEDS : public AlgorithmInterface<dist_t> {
                     data_size_,
                     PrefetchController::lookahead_dist
                 );
+                PrefetchController::v2_step(data, j, size, visited_array, visited_array_tag,   // Idea 2.0
+                    [this](tableint id) -> void* { return (void*)getDataByInternalId(id); }, data_size_);
 
 
                 int abl = g_abl;
@@ -1043,7 +1051,7 @@ class HEDS : public AlgorithmInterface<dist_t> {
 
                     if (flag_consider_candidate) {
                         candidate_set.emplace(-dist, candidate_id);
-                        if (PrefetchController::enable_stock_prefetch)  // hnswlib stock
+                        if (PrefetchController::enable_stock_prefetch || (PrefetchController::enable_v2 && PrefetchController::v2_push_ll))  // stock / Idea 2.0
                             _mm_prefetch((char *) get_linklist0(candidate_set.top().second), _MM_HINT_T0);
                         updateNum++;
                         //searchUpdate.push_back(std::make_pair(updateNum, baseNumDis));
