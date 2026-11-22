@@ -1,0 +1,320 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{float} % Keep each figure near its discussion
+\usepackage{placeins} % Prevent floats from crossing section boundaries
+\usepackage{url}
+\usepackage[hidelinks]{hyperref} % keep last
+
+\begin{document}
+
+\input{front_page}
+
+\tableofcontents
+\clearpage
+
+
+
+\section{Problem statement}
+
+Graph-based approximate nearest-neighbor (ANN) search balances recall,
+latency, and index size. SHG (VLDB 2025)~\cite{shg} reports better recall--latency
+trade-offs than HNSW~\cite{hnsw} (Figure~\ref{fig:paper-curve}). We tested this claim using the released SHG code~\cite{shgcode} and a native HNSW baseline (hnswlib~\cite{hnswlib}).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{figures/shg_paper_recall_latency.png}
+\caption{Recall--latency results reported by the SHG authors~\cite{shg} (their Figure 5).}
+\label{fig:paper-curve}
+\end{figure}
+
+We evaluated Enron~\cite{survey}, GIST1M, and SIFT1M~\cite{pq,texmex} ($M=48$,
+$ef_{construction}=80$, $k=20$, $ef_{search}=20$--512).
+HNSW was faster at comparable recall on Enron and SIFT1M. On GIST1M,
+SHG did not reach 0.90 recall, while HNSW reached 0.934.
+SHG also used more index memory (Table~\ref{tab:comparison}).
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+Dataset & \multicolumn{2}{c}{Latency at $\geq$0.90 recall ($\mu$s)}
+        & Max. recall@$k=20$ & Index size (MiB) \\
+        & HNSW & SHG & HNSW / SHG & HNSW / SHG \\
+\midrule
+Enron  & 416  & 808         & 0.9925 / 0.9910 & 533 / 698 \\
+GIST1M & 3308 & Not reached & 0.9632 / 0.6300 & 4048 / 5249 \\
+SIFT1M & 199  & 400         & 0.9988 / 0.9982 & 874 / 1026 \\
+\bottomrule
+\end{tabular}
+\caption{Mean full-query latency at the first measured sweep point reaching
+0.90 recall, maximum recall across the sweep, and saved index size.}
+\label{tab:comparison}
+\end{table}
+
+Our work instead targets memory stalls without changing search decisions.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{figures/recall_latency_vanilla_all_datasets.png}
+\caption{Measured recall--latency curves for the three datasets for M=48 and efConstruction=80.}
+\label{fig:our-curve}
+\end{figure}
+
+\section{Reproduction limitations}
+
+This is not an exact reproduction: we use SIFT1M rather than SIFT100M~\cite{texmex},
+and a separate HNSW implementation~\cite{hnswlib}. SHG also uses compressed distances
+at build time. Our curves sweep $ef_{search}$ over all queries, whereas
+the paper uses recall-ordered subsets; its plotting script is unavailable.
+
+The released example lacks a working vanilla HNSW baseline and uses
+$k$, not $ef_{search}$, as SHG's base-layer breadth. We use
+$\max(ef_{search},k)$. SHG skipped no levels because its shortcut tables
+were below the 100-entry activation threshold. These differences limit
+comparison with the published results.
+
+\section{Experimental setup}
+
+We run our experiments with one thread on an Ubuntu 22.04 machine equipped with a 24-core Intel Xeon Gold 5220R CPU at 2.20 GHz and 125 GiB of RAM. Base-layer profiling used $ef_{search}=64$.
+
+\section{Observations}
+\label{sec:observation}
+\subsection{Dependent memory accesses}
+
+Each expanded node requires a neighbor-list read, visited-flag checks,
+and vector loads for unseen neighbors. These dependent accesses can stall
+the core.
+
+\subsection{Where query time is spent}
+
+Figures~\ref{fig:hnsw-time-breakdown} and~\ref{fig:shg-time-breakdown}
+break query time into distance computation, memory-related idle time,
+and search overhead.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{figures/21_full_breakdown_hnsw_ef64.pdf}
+\caption{Breakdown of average base-layer query time for HNSW at
+$ef_{search}=64$.}
+\label{fig:hnsw-time-breakdown}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{figures/21b_full_breakdown_shg_ef64.pdf}
+\caption{Breakdown of average base-layer query time for SHG at
+$ef_{search}=64$.}
+\label{fig:shg-time-breakdown}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+ & \multicolumn{2}{c}{HNSW} & \multicolumn{2}{c}{SHG} \\
+Dataset & Avg. time ($\mu$s) & Idle time & Avg. time ($\mu$s) & Idle time \\
+\midrule
+Enron  & $\sim$346 & 62\,$\mu$s (18\%) & $\sim$451 & 75\,$\mu$s (17\%) \\
+GIST1M & $\sim$495 & 68\,$\mu$s (14\%) & $\sim$299 & 70\,$\mu$s (24\%) \\
+SIFT1M & $\sim$94 & 35\,$\mu$s (37\%) & $\sim$181 & 43\,$\mu$s (24\%) \\
+\bottomrule
+\end{tabular}
+\caption{Base-layer query time and memory-related idle share at
+$ef_{search}=64$; totals are inferred from rounded values.}
+\label{tab:query-time-breakdown}
+\end{table}
+
+On SIFT1M, HNSW spends about 37\% of its 0.103\,ms base-layer time idle;
+SHG spends 24\% of 0.196\,ms idle. Across datasets, idle shares range
+from 13--37\% for HNSW and 16--24\% for SHG. This motivates early,
+selective data requests rather than indiscriminate prefetching.
+
+\subsection{Why existing prefetching falls short}
+
+Native HNSW~\cite{hnswlib} prefetches the next neighbor's flag and first vector cache
+line, potentially too late to hide latency. It may also fetch already-visited
+vectors. The released SHG base-layer loop~\cite{shgcode} has no software prefetches.
+
+Whole-vector prefetching slowed Enron and GIST1M by 10--20\% versus
+no prefetching. Unfiltered look-ahead helped SIFT1M but slowed HNSW by
+1.5\% on Enron and 5.8\% on GIST1M. Extra traffic can outweigh the benefit.
+
+\section{Optimization direction}
+
+Memory stalls account for substantial query time, but indiscriminate
+prefetching can be slower. Our goal is to \emph{prefetch useful data early
+without excess memory traffic}, while preserving search behavior.
+
+\section{Solution: Pf\_Filter}
+\label{sec:pf-filter}
+
+\textsc{Pf\_Filter} looks ahead in the base-layer neighbor loop and
+uses visited flags to avoid prefetching unnecessary vectors. It changes only when data is loaded, not candidate selection or distance computation.
+
+\subsection{Two-stage filtered look-ahead}
+
+The visited flag determines whether a vector is needed. With look-ahead
+$D=2$ (Figure~\ref{fig:pf-filter-design}), processing neighbor $j$:
+\begin{enumerate}
+  \item Prefetches the visited flag of neighbor $j+2D$ ($j+4$).
+  \item Checks the flag of neighbor $j+D$ ($j+2$), which was prefetched two neighbours earlier and is normally in cache, and prefetches the first three cache lines of its vector only if that neighbour has not been visited.
+\end{enumerate}
+
+This staggers dependent loads and avoids speculative requests for visited
+vectors.
+
+\subsection{Preparing the next accesses}
+
+At the start of each neighbour list, Pf\_Filter prefetches the first $2D$ visited flags and the first $D$ vectors, so the look-ahead is full from the first neighbour. It also prefetches the neighbour list of the next candidate right after a pop, and that of the queue's top node after each push. SHG additionally prefetches the target of a shortcut jump; this part is not used in HNSW.
+
+\subsection{Correctness and overhead}
+
+Prefetches do not change search state or index layout. Tested
+configurations had zero result mismatches against vanilla HNSW; overhead is
+limited to extra flag checks and prefetch instructions.
+
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{figures/pf_filter_steps.pdf}
+\caption{Two-stage prefetching with $D=2$: while processing neighbor $j$,
+\textsc{Pf\_Filter} requests the flag for $j+4$ and conditionally requests
+vector cache lines for $j+2$.}
+\label{fig:pf-filter-design}
+\end{figure}
+
+
+
+
+\section{Results}
+\label{sec:results}
+
+Figure~\ref{fig:pf-filter-results} shows that \textsc{Pf\_Filter} shifts
+recall--latency curves left: lower latency at unchanged recall for both
+algorithms. Each point averages five full-query-set runs ($M=48$,
+$ef_{construction}=80$, $k=20$).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{figures/recall_latency_all_datasets.png}
+\caption{Recall--latency plot for Enron, GIST1M,
+and SIFT1M for M=48 and efConstruction=80.}
+\label{fig:pf-filter-results}
+\end{figure}
+
+At $ef_{search}=64$, HNSW latency falls by 20.0\% (Enron), 24.3\%
+(GIST1M), and 25.6\% (SIFT1M); SHG falls by 17.7\%, 26.2\%, and
+18.5\%, respectively. SHG's recall deficit on GIST1M remains.
+
+
+\subsection{Throughput}
+
+As $ef_{search}$ rises, latency increases throughput decreases (Figure~\ref{fig:pf-filter-qps}).
+\textsc{Pf\_Filter} consistently improves both metrics over each
+algorithm's baseline.
+
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{figures/qps_all_datasets.png}
+\caption{Search throughput across $ef_{search}$ values. Higher QPS indicates
+more queries completed per second.}
+\label{fig:pf-filter-qps}
+\end{figure}
+
+Across ten $ef_{search}$ values, filtered HNSW averages
+$1.33\times$ speedup on SIFT1M, $1.27\times$ on Enron, and
+$1.33\times$ on GIST1M (Figure~\ref{fig:pf-filter-speedup}).
+Ratios are normalized to vanilla HNSW at equal $ef_{search}$;
+recall may differ.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{figures/mean_latency_speedup_all_datasets.png}
+\caption{Mean same-$ef_{search}$ speedup over vanilla HNSW;
+recall may differ.}
+\label{fig:pf-filter-speedup}
+\end{figure}
+
+\subsection{Effect of Pf\_Filter on Base-Layer Time}
+\label{sec:pf-filter-breakdown}
+
+Figures~\ref{fig:pf-filter-breakdown-hnsw} and~\ref{fig:pf-filter-breakdown-shg}
+show where the base-layer time goes at $ef_{search}=64$, before and after adding
+\textsc{Pf\_Filter}. The base layer takes 93--99.8\% of the query time as discussed in section~\ref{sec:observation}.
+
+\textsc{Pf\_Filter} cuts the idle time on every dataset, by 10--15\% for HNSW and
+16--21\% for SHG. Distance computation does not change. For HNSW the total saving is
+small (0.5--2.6\%), because the search overhead stays about the same. For SHG the
+overhead also drops, so the base layer is 8--15\% faster. The search results do not
+change.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{figures/19a_problem_vs_pf_filter_hnsw.pdf}
+\caption{Base-layer time per query for vanilla HNSW (left bar) and HNSW +
+\textsc{Pf\_Filter} (right bar) at $ef_{search}=64$. Above each pair: change in total
+time and in idle time.}
+\label{fig:pf-filter-breakdown-hnsw}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{figures/19b_problem_vs_pf_filter_shg.pdf}
+\caption{Base-layer time per query for SHG as published (left bar) and SHG +
+\textsc{Pf\_Filter} (right bar) at $ef_{search}=64$. Above each pair: change in total
+time and in idle time.}
+\label{fig:pf-filter-breakdown-shg}
+\end{figure}
+
+
+\clearpage
+\phantomsection
+\addcontentsline{toc}{section}{References}
+\begin{thebibliography}{9}
+
+\bibitem{shg}
+Z.~Gong, Y.~Zeng, and L.~Chen.
+\newblock Accelerating approximate nearest neighbor search in hierarchical graphs:
+  Efficient level navigation with shortcuts.
+\newblock \emph{PVLDB}, 18(10):3518--3530, 2025.
+\newblock doi:10.14778/3748191.3748212.
+
+\bibitem{shgcode}
+Z.~Gong.
+\newblock SHG-Index: source code.
+\newblock \url{https://github.com/gzyhkust/SHG-Index}.
+
+\bibitem{hnsw}
+Y.~A. Malkov and D.~A. Yashunin.
+\newblock Efficient and robust approximate nearest neighbor search using
+  hierarchical navigable small world graphs.
+\newblock \emph{IEEE Trans. Pattern Anal. Mach. Intell.}, 42(4):824--836, 2020.
+
+\bibitem{hnswlib}
+hnswlib: header-only C++/Python library for fast approximate nearest neighbors.
+\newblock \url{https://github.com/nmslib/hnswlib}.
+
+\bibitem{pq}
+H.~J\'egou, M.~Douze, and C.~Schmid.
+\newblock Product quantization for nearest neighbor search.
+\newblock \emph{IEEE Trans. Pattern Anal. Mach. Intell.}, 33(1):117--128, 2011.
+
+\bibitem{texmex}
+H.~J\'egou, M.~Douze, and C.~Schmid.
+\newblock Datasets for approximate nearest neighbor search (TEXMEX corpus).
+\newblock \url{http://corpus-texmex.irisa.fr/}.
+
+\bibitem{survey}
+M.~Wang, X.~Xu, Q.~Yue, and Y.~Wang.
+\newblock A comprehensive survey and experimental comparison of graph-based
+  approximate nearest neighbor search.
+\newblock \emph{PVLDB}, 14(11):1964--1978, 2021.
+
+\end{thebibliography}
+
+\end{document}

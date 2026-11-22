@@ -1,0 +1,89 @@
+% Proposed method: Pf_Filter
+% Needs in the preamble: \usepackage{graphicx}, \usepackage{booktabs} (optional), \usepackage{amsmath}
+
+\section{Proposed Method: Pf\_Filter}
+\label{sec:pf-filter}
+
+Pf\_Filter is a software prefetching scheme for the HNSW base-layer search.
+It requests each piece of data a few steps before the search needs it, and it
+uses the cheap visited flag to skip fetching vectors that the search will discard.
+It changes only \emph{when} data is loaded, never \emph{what} the search computes.
+
+\subsection{Where a Search Step Waits}
+
+Each step of the base-layer search does the following:
+\begin{enumerate}
+  \item Pop the closest candidate from the priority queue.
+  \item Read its neighbour list.
+  \item For each neighbour: read its visited flag; if it is new, load its vector,
+        compute the distance and, if it is close enough, push it into the queue.
+\end{enumerate}
+The neighbour list, the visited flag and the vector each sit at an effectively
+random address. Each one is a separate trip to DRAM costing a few hundred cycles.
+This is the idle time measured in Section~\ref{sec:observation}.
+
+\subsection{Why the Stock Prefetch Falls Short}
+
+Stock hnswlib prefetches the visited flag and the first cache line of neighbour
+$j+1$ while it works on neighbour $j$. This has two weaknesses:
+\begin{itemize}
+  \item \textbf{Too late.} Processing one neighbour takes less time than one DRAM
+        access, so the data for $j+1$ has not arrived when the loop reaches it.
+  \item \textbf{Too little.} One 64-byte line covers a small part of a vector:
+        a SIFT vector is 512\,B, a GIST vector 3{,}840\,B and an Enron vector 5{,}476\,B.
+\end{itemize}
+
+\subsection{Pf\_Filter Design}
+
+Pf\_Filter has three parts, with a look-ahead distance $D = 2$
+(Figure~\ref{fig:pf-filter-design}).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{new_plot/pf_filter_design}
+  \caption{Pf\_Filter design: one step of the HNSW base-layer loop at neighbour $j$
+           ($D = 2$). At $j$ the vector is already in cache; the flag of $j+2$
+           decides whether its vector is fetched, and the flag of $j+4$ is requested next.}
+  \label{fig:pf-filter-design}
+\end{figure}
+
+\paragraph{1. Two-stage, filtered look-ahead.}
+While processing neighbour $j$, the loop issues two prefetches:
+\begin{itemize}
+  \item the visited flag of neighbour $j + 2D$ ($j+4$). A flag is one byte, so
+        fetching it far ahead is cheap;
+  \item the first three cache lines of the vector of neighbour $j + D$ ($j+2$),
+        but \emph{only if its flag says it is not yet visited}. That flag was
+        requested two steps earlier and is already in cache, so the check costs
+        almost nothing.
+\end{itemize}
+The filter is the key change. Many neighbours are already visited and will be
+skipped. An unfiltered look-ahead fetches their vectors anyway, wasting memory
+bandwidth and evicting useful lines. Pf\_Filter fetches only the vectors the
+search will actually use.
+
+\paragraph{2. Warm-up.}
+At the start of each neighbour list nothing has been prefetched yet. The loop
+first requests the flags of neighbours $1$ to $2D$ and the vectors of neighbours
+$1$ to $D$, so the look-ahead is full from the first neighbour.
+
+\paragraph{3. Next-candidate neighbour list.}
+While the current node's neighbours are processed, Pf\_Filter prefetches the
+neighbour list of the next candidate in the queue. A node's neighbour list is
+also prefetched when it is pushed into the queue. The next step's neighbour-list
+read then hits in cache.
+
+Pf\_Filter also includes a shortcut-jump prefetch that applies only to SHG's
+shortcut edges. HNSW has no shortcuts, so this part never runs in any HNSW
+result in this report.
+
+\subsection{Correctness and Cost}
+
+A prefetch is a hint to the hardware: it moves data closer to the core but does
+not change program state. The search visits the same nodes, computes the same
+distances and returns the same results. We verified this: 0 mismatches against
+vanilla HNSW on all four datasets and all efSearch values.
+
+The added work per neighbour is one flag read from cache and at most two
+prefetch instructions. No change is made to the index, its memory layout or
+its build.

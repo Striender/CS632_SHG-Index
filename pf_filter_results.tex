@@ -1,0 +1,43 @@
+% Results: where Pf_Filter saves time (figures 19a, 19b)
+% Needs in the preamble: \usepackage{graphicx}, \usepackage{subcaption}
+
+\subsection{Effect of Pf\_Filter on Base-Layer Time}
+\label{sec:pf-filter-breakdown}
+
+Figure~\ref{fig:pf-filter-breakdown} compares each published system with the same
+system plus Pf\_Filter at efSearch 64. Each bar splits the base-layer time per query
+into CPU idle time (waiting on memory), distance computation and search overhead,
+measured as in Section~\ref{sec:observation}. The base layer accounts for 93--99.8\%
+of the full query time, and Pf\_Filter does not change the distance computation.
+
+Pf\_Filter reduces the idle time on every dataset: by 10--15\% on HNSW and by
+16--21\% on SHG. On HNSW the total gain is small (0.5--2.6\%), because the search
+overhead stays roughly the same. On Enron it even rises from 215 to 221\,$\mu$s, which
+cancels most of the saved idle time. On SHG both the idle time and the overhead drop,
+so the base layer becomes 8.3\% (Enron), 15\% (GIST1M) and 12\% (SIFT1M) faster.
+In all cases the results are identical to the system without Pf\_Filter.
+
+\begin{figure}[t]
+  \centering
+  \begin{subfigure}{\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{new_plot/19a_problem_vs_pf_filter_hnsw}
+    \caption{Vanilla HNSW vs.\ HNSW + Pf\_Filter.}
+    \label{fig:pf-filter-breakdown-hnsw}
+  \end{subfigure}
+
+  \vspace{0.6em}
+  \begin{subfigure}{\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{new_plot/19b_problem_vs_pf_filter_shg}
+    \caption{SHG as published vs.\ SHG + Pf\_Filter.}
+    \label{fig:pf-filter-breakdown-shg}
+  \end{subfigure}
+  \caption{Base-layer time per query at efSearch 64, split into CPU idle time
+           (waiting on memory), distance computation and search overhead. Left bar:
+           published system; right bar: with Pf\_Filter. Above each pair: change in
+           total time and in idle time. Single thread pinned to one core, cold cache;
+           per query the median of 5 runs, then the mean over queries;
+           $M = 48$, efConstruction $= 80$, $K = 20$.}
+  \label{fig:pf-filter-breakdown}
+\end{figure}

@@ -221,10 +221,10 @@ AlgorithmInterface<dist_t>::searchKnnCloserFirst(const void* query_data, unsigne
 }
 }  // namespace hnswlib
 
-inline int g_abl = 0;
+inline thread_local int g_abl = 0;
 #include <x86intrin.h>
-inline unsigned long long g_tsc_split = 0, g_lvl_skipped = 0, g_skip_events = 0;
-inline std::vector<size_t> g_touched;
+inline thread_local unsigned long long g_tsc_split = 0, g_lvl_skipped = 0, g_skip_events = 0;
+inline thread_local std::vector<size_t> g_touched;
 #include "space_l2.h"
 #include "space_ip.h"
 #include "stop_condition.h"

@@ -6,6 +6,8 @@
 #include <chrono>
 #include <random>
 #include <numeric>
+#include <algorithm>
+#include <cstdlib>
 using namespace std;
 static size_t g_ndist=0; static hnswlib::DISTFUNC<float> g_real;
 static float countingL2(const void*a,const void*b,const void*p){ g_ndist++; return g_real(a,b,p); }
@@ -70,29 +72,31 @@ int main(int argc,char**argv){
   for(int L=2;L<=5;L++){ ms.push_back({"SHG_idea2_L"+to_string(L),0,hnswlib::PrefetchMode::STEP2_SKIP_LOOKAHEAD,false,L});
                          ms.push_back({"HNSW_idea2_L"+to_string(L),0,hnswlib::PrefetchMode::STEP2_SKIP_LOOKAHEAD,true,L}); }
 #endif
-  int NM=ms.size(); const int P2=3;
-  vector<int> ids_tmp; auto run=[&](M& m,int i){ g_abl=m.abl; hnswlib::PrefetchController::set_mode(m.pm); hnswlib::PrefetchController::lookahead_dist=m.la; hnswlib::PrefetchController::lookahead_lines=m.lines;
+  int NM=ms.size(); const int P2=5;   // 5 repetitions per query, median per query (same statistic as bench_prune)
+  vector<int> ids_tmp; double g_up=0; auto run=[&](M& m,int i){ g_abl=m.abl; hnswlib::PrefetchController::set_mode(m.pm); hnswlib::PrefetchController::lookahead_dist=m.la; hnswlib::PrefetchController::lookahead_lines=m.lines;
 #if defined(IDEA2V2)
     if(m.v2>=0){ auto& c=V2S[m.v2]; using PC=hnswlib::PrefetchController; PC::v2_dist=c.d; PC::v2_lines=c.lines; PC::v2_warmup=c.pro; PC::v2_filter=c.filt; PC::v2_push_ll=true; }
 #endif
     Query q(N+i,K);
     auto a=__rdtsc(); auto r = m.hnsw ? S->searchKnnHNSW(q) : S->searchKnnShortcuts(q); auto b=__rdtsc();
-    ids_tmp.clear(); while(!r.empty()){ ids_tmp.push_back((int)r.top().second); r.pop(); } sort(ids_tmp.begin(),ids_tmp.end());
+    g_up=(double)(g_tsc_split-a); ids_tmp.clear(); while(!r.empty()){ ids_tmp.push_back((int)r.top().second); r.pop(); } sort(ids_tmp.begin(),ids_tmp.end());
     for(size_t x:g_touched) S->resultsProcessing[x]=-1; g_touched.clear(); return make_pair((double)(b-g_tsc_split),(double)S->baseNumDis); };
   vector<int> ref(NM); for(int a=0;a<NM;a++) for(int b=0;b<NM;b++) if(ms[b].hnsw==ms[a].hnsw && ms[b].pm==hnswlib::PrefetchMode::BASELINE) ref[a]=b;
   FILE* chk=fopen("correctness.csv","w"); fprintf(chk,"method,ef,reference,queries,mismatched_queries\n");
   FILE* out=fopen("stall.csv","w");
-  fprintf(out,"method,ef,core_ghz,dram_latency_cyc,compute_cyc_per_eval,base_evals_per_q,cold_cyc_per_eval,warm_cyc_per_eval,stall_cyc_per_eval,overhead_cyc_per_eval,cold_base_us,warm_base_us\n");
-  for(int ef:{20,64,100}){ S->setEf(ef);
+  fprintf(out,"method,ef,core_ghz,dram_latency_cyc,compute_cyc_per_eval,base_evals_per_q,cold_cyc_per_eval,warm_cyc_per_eval,stall_cyc_per_eval,overhead_cyc_per_eval,cold_base_us,warm_base_us,upper_us,full_us\n");
+  vector<int> efs={20,64,100}; if(const char* e=getenv("EFS")){ efs.clear(); for(const char* c=e;*c;){ efs.push_back(atoi(c)); while(*c&&*c!=',') c++; if(*c) c++; } }
+  for(int ef:efs){ S->setEf(ef);
     for(int i=0;i<min(NQ,300);i++) for(auto&m:ms) run(m,i);
-    vector<double> cold(NM,0),warm(NM,0),ev(NM,0); vector<vector<vector<int>>> ids(NM,vector<vector<int>>(NQ));
+    vector<double> ev(NM,0); vector<vector<vector<double>>> cv(NM,vector<vector<double>>(NQ)),wv=cv,uv=cv; vector<vector<vector<int>>> ids(NM,vector<vector<int>>(NQ));
     vector<vector<int>> perm(P2,vector<int>(NM)); { mt19937 rng(777+ef); for(auto& o:perm){ iota(o.begin(),o.end(),0); shuffle(o.begin(),o.end(),rng);} }
     for(int p=0;p<P2;p++) for(int k=0;k<NM;k++) for(int i=0;i<NQ;i++){ int mi=perm[p][k];
-      auto c=run(ms[mi],i); if(p==0) ids[mi][i]=ids_tmp; auto w=run(ms[mi],i); cold[mi]+=c.first; warm[mi]+=w.first; ev[mi]+=c.second; }
+      auto c=run(ms[mi],i); double u=g_up; if(p==0) ids[mi][i]=ids_tmp; auto w=run(ms[mi],i); cv[mi][i].push_back(c.first); wv[mi][i].push_back(w.first); uv[mi][i].push_back(u); ev[mi]+=c.second; }
     for(int mi=0;mi<NM;mi++){ int bad=0; for(int i=0;i<NQ;i++) bad+=ids[mi][i]!=ids[ref[mi]][i]; fprintf(chk,"%s,%d,%s,%d,%d\n",ms[mi].name.c_str(),ef,ms[ref[mi]].name.c_str(),NQ,bad);
       if(bad) printf("CORRECTNESS MISMATCH %s ef=%d: %d/%d\n",ms[mi].name.c_str(),ef,bad,NQ); } fflush(chk);
-    for(int mi=0;mi<NM;mi++){ double n=P2*(double)NQ, e=ev[mi]/n, cc=cold[mi]/n*cyc_per_tsc/e, wc=warm[mi]/n*cyc_per_tsc/e;
-      fprintf(out,"%s,%d,%.3f,%.0f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f\n",ms[mi].name.c_str(),ef,ghz,dram_cyc,comp_cyc,e,cc,wc,cc-wc,wc-comp_cyc,cold[mi]/n/hz*1e6,warm[mi]/n/hz*1e6);
+    auto mm=[&](vector<vector<double>>& v){ double s=0; for(auto x:v){ nth_element(x.begin(),x.begin()+x.size()/2,x.end()); s+=x[x.size()/2]; } return s/v.size(); };  // mean over queries of per-query median (TSC ticks)
+    for(int mi=0;mi<NM;mi++){ double n=P2*(double)NQ, e=ev[mi]/n, C=mm(cv[mi]), Wm=mm(wv[mi]), U=mm(uv[mi]), cc=C*cyc_per_tsc/e, wc=Wm*cyc_per_tsc/e;
+      fprintf(out,"%s,%d,%.3f,%.0f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.2f\n",ms[mi].name.c_str(),ef,ghz,dram_cyc,comp_cyc,e,cc,wc,cc-wc,wc-comp_cyc,C/hz*1e6,Wm/hz*1e6,U/hz*1e6,(U+C)/hz*1e6);
       printf("%-16s ef=%3d evals/q=%.0f cold=%.0f warm=%.0f stall=%.0f compute=%.0f overhead=%.0f cyc/eval\n",ms[mi].name.c_str(),ef,e,cc,wc,cc-wc,comp_cyc,wc-comp_cyc); }
     fflush(out); fflush(stdout); }
 }

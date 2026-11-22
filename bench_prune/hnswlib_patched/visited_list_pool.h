@@ -3,6 +3,7 @@
 #include <mutex>
 #include <string.h>
 #include <deque>
+#include <memory>
 
 namespace hnswlib {
 typedef unsigned short int vl_type;
@@ -48,23 +49,16 @@ class VisitedListPool {
     }
 
     VisitedList *getFreeVisitedList() {
-        VisitedList *rez;
-        {
-            std::unique_lock <std::mutex> lock(poolguard);
-            if (pool.size() > 0) {
-                rez = pool.front();
-                pool.pop_front();
-            } else {
-                rez = new VisitedList(numelements);
-            }
+        thread_local std::unique_ptr<VisitedList> tl_vl = nullptr;
+        if (!tl_vl || tl_vl->numelements != (unsigned int)numelements) {
+            tl_vl = std::make_unique<VisitedList>(numelements);
         }
-        rez->reset();
-        return rez;
+        tl_vl->reset();
+        return tl_vl.get();
     }
 
     void releaseVisitedList(VisitedList *vl) {
-        std::unique_lock <std::mutex> lock(poolguard);
-        pool.push_front(vl);
+        // Lock-free thread-local list: no mutex locking required
     }
 
     ~VisitedListPool() {

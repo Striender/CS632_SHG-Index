@@ -14,11 +14,10 @@ int main(int argc, char** argv) {
     std::string dataset(argv[2]);
     int K = std::stoi(argv[3]); 
 
-    //std::string file = "/home/data/zgongae/VectorsIndex/datasets/" + dataset + "/" + dataset +".data_new";
-    std::string file = "/home/data/zgongae/VectorsIndex/HEDS/" + dataset + "/" + dataset +".data_new";
+    std::string file = resolve_data_file(dataset, dataset + ".data_new");
     std::ifstream loadin(file.c_str(), std::ios::binary);
     while (!loadin) {
-        printf("Fail to find data file!\n");
+        printf("Fail to find data file: %s!\n", file.c_str());
         exit(0);
     }
 
@@ -69,7 +68,10 @@ int main(int argc, char** argv) {
 
     per.setTimeBuildindex(t.elapsed());
 
-    std::string construction_res_path = "/home/data/zgongae/VectorsIndex/HEDS/results/" + dataset + "_" + algo +"_construction.txt";
+    std::string results_dir = "results";
+    std::ifstream check_r("../results");
+    if (check_r.is_open()) results_dir = "../results";
+    std::string construction_res_path = results_dir + "/" + dataset + "_" + algo +"_construction.txt";
     std::ofstream construction_res(construction_res_path);
 
     std::cout << "Build Index Time : " << per.getTimeBuildindex() << " [s]" << std::endl;
@@ -94,7 +96,7 @@ int main(int argc, char** argv) {
     construction_res << "Memory cost of shortcuts: " << (alg_hnsw->Shortcuts.size_in_bytes()) << std::endl;
     construction_res.close();
     // ------------------------------  STEP 3: Load the query and groundtruth ------------------------------
-    std::string search_res_path = "/home/data/zgongae/VectorsIndex/HEDS/results/" + dataset + "_" + algo + "_"+std::to_string(K)+"_search.txt";
+    std::string search_res_path = results_dir + "/" + dataset + "_" + algo + "_"+std::to_string(K)+"_search.txt";
     std::ofstream search_res(search_res_path);
 
     alg_hnsw->resultsProcessing.assign(num_base * (alg_hnsw->maxlevel_+1),-1);

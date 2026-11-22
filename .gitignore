@@ -1,3 +1,4 @@
+# Python / Editor / OS artifacts
 hnswlib.egg-info/
 build/
 dist/
@@ -11,15 +12,56 @@ var/
 .vs/
 **.DS_Store
 *.pyc
+*.pyo
+*.log
+
+# Large Datasets and Vector Archives
 enron/
 sift/
 gist/
 sift10m/
 sift10m.zip
+enron.zip
+bench10m/
+*.crdownload
+*.fvecs
+*.bvecs
+*.ivecs
+*.data_new
+*.bin
+*.tar.gz
+*.zip
+*.idx
+
+# Compiled Binaries & Build Objects
+*.o
+*.a
+*.so
+bench_prune/bench_conference
 bench_prune/bench_prune
+bench_prune/bench_prune2
 bench_prune/bench_prune_dbg
 bench_prune/bench_stall
 bench_prune/bench_stall_full
+bench_prune/bench_stall_v2
 bench_prune/check_asan/
 bench_prune/check_valgrind/
-bench_prune/bench_stall_v2
+
+# Intermediate Shell Scripts and Run Outputs
+bench_prune/out2_*/
+bench_prune/out3_*/
+bench_prune/stall5_*/
+bench_prune/run_prune*.sh
+bench_prune/run_stall5.sh
+bench_prune/plot_conference_results.py
+
+# Random CSV and intermediate plot directories
+c_plot/
+results/
+plots/
+new_plot/
+
+# Large External PDFs
+final_report.pdf
+p3518-chen.pdf
+

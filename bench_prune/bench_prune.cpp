@@ -1,3 +1,4 @@
+#include <cstdlib>
 // HNSW vs SHG with / without base-layer pruning, same graph, interleaved per query.
 #include "hnswlib_patched/hnswlib.h"
 #include <sys/resource.h>
@@ -30,11 +31,14 @@ int main(int argc,char**argv){
   printf("build %.0fs shortcuts %.1fs n_shortcuts=%zu maxlevel=%d RSS=%.0fMB\n",build,sc,(size_t)S->shortcutsSize,S->maxlevel_,rss_kb()/1024.0); fflush(stdout);
   cpu_set_t cs; CPU_ZERO(&cs); CPU_SET(2,&cs); sched_setaffinity(0,sizeof(cs),&cs);
   auto c0=__rdtsc(); auto t0=chrono::steady_clock::now(); while(chrono::duration<double>(chrono::steady_clock::now()-t0).count()<0.3); double hz=(__rdtsc()-c0)/0.3;
-  struct M{const char* name; int abl; hnswlib::PrefetchMode pm; bool hnsw;};
+  struct M{const char* name; int abl; hnswlib::PrefetchMode pm; bool hnsw; bool v2filter=false;};
   // abl: 0 = SHG as published (base-layer pruning on), 2 = base-layer pruning off. Prefetch: none / hnswlib stock / Idea 2.
   vector<M> ms={{"HNSW_stock",0,hnswlib::PrefetchMode::STOCK_HNSW,true},{"HNSW_noprefetch",0,hnswlib::PrefetchMode::BASELINE,true},{"HNSW_idea2",0,hnswlib::PrefetchMode::STEP2_SKIP_LOOKAHEAD,true},
                 {"SHG_original",0,hnswlib::PrefetchMode::BASELINE,false},{"SHG_stock",0,hnswlib::PrefetchMode::STOCK_HNSW,false},{"SHG_idea2",0,hnswlib::PrefetchMode::STEP2_SKIP_LOOKAHEAD,false},
-                {"SHG_noprune",2,hnswlib::PrefetchMode::BASELINE,false},{"SHG_noprune_stock",2,hnswlib::PrefetchMode::STOCK_HNSW,false},{"SHG_noprune_idea2",2,hnswlib::PrefetchMode::STEP2_SKIP_LOOKAHEAD,false}};
+                {"SHG_noprune",2,hnswlib::PrefetchMode::BASELINE,false},{"SHG_noprune_stock",2,hnswlib::PrefetchMode::STOCK_HNSW,false},{"SHG_noprune_idea2",2,hnswlib::PrefetchMode::STEP2_SKIP_LOOKAHEAD,false},
+                // Idea 2.0 filter (warm-up + visited filter at j+D, D=2, 3 lines + link-list prefetches + Idea 1)
+                {"HNSW_v2_filter",0,hnswlib::PrefetchMode::IDEA2_V2,true,true},{"SHG_v2_filter",0,hnswlib::PrefetchMode::IDEA2_V2,false,true},
+                {"SHG_noprune_v2_filter",2,hnswlib::PrefetchMode::IDEA2_V2,false,true}};
   int NM=ms.size();
   // correctness reference: same search (hnsw flag + abl) with no prefetch
   vector<int> ref(NM); for(int a=0;a<NM;a++) for(int b=0;b<NM;b++) if(ms[b].hnsw==ms[a].hnsw && ms[b].abl==ms[a].abl && ms[b].pm==hnswlib::PrefetchMode::BASELINE) ref[a]=b;
@@ -43,10 +47,14 @@ int main(int argc,char**argv){
   FILE* out=fopen("prune.csv","w");
   fprintf(out,"method,ef,recall,lat_mean_us,lat_p50_us,lat_p95_us,lat_p99_us,qps,dist_per_q,upper_frac,skip_q_frac,lvls_skipped_per_q,build_s,shortcut_s,index_mb,rss_mb,major_faults\n");
   FILE* pq=fopen("prune_perquery.csv","w"); fprintf(pq,"method,ef,qid,lat_us,recall\n");
-  auto run=[&](M& m,int i){ g_abl=m.abl; hnswlib::PrefetchController::set_mode(m.pm); Query q(N+i,K);
+  auto run=[&](M& m,int i){ g_abl=m.abl; hnswlib::PrefetchController::set_mode(m.pm);
+    if(m.v2filter){ using PC=hnswlib::PrefetchController; PC::v2_dist=2; PC::v2_lines=3; PC::v2_warmup=true; PC::v2_filter=true; PC::v2_push_ll=true; }
+    Query q(N+i,K);
     auto r = m.hnsw ? S->searchKnnHNSW(q) : S->searchKnnShortcuts(q);
     for(size_t x:g_touched) S->resultsProcessing[x]=-1; g_touched.clear(); return r; };
-  for(int ef:{20,30,40,60,80,120,200,300}){ S->setEf(ef);
+  // efSearch list: env EFS="64" or "20,64,100" overrides the default sweep
+  vector<int> efs={20,30,40,60,80,120,200,300}; if(const char* e=getenv("EFS")){ efs.clear(); for(const char* c=e;*c;){ efs.push_back(atoi(c)); while(*c&&*c!=',') c++; if(*c) c++; } }
+  for(int ef:efs){ S->setEf(ef);
     for(int i=0;i<min(NQ,300);i++) for(auto&m:ms) run(m,i);
     vector<vector<vector<double>>> lat(NM,vector<vector<double>>(NQ)); vector<vector<float>> rec(NM,vector<float>(NQ)); vector<vector<vector<int>>> ids(NM,vector<vector<int>>(NQ));
     vector<double> dst(NM,0),upc(NM,0),totc(NM,0),skq(NM,0),lsk(NM,0); long f0=majflt();

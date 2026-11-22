@@ -121,6 +121,12 @@ if(HNSWLIB_EXAMPLES)
     ##target_link_libraries(example_search hnswlib)
     target_link_libraries(example_search PRIVATE hnswlib::hnswlib pgm::pgm)
 
+    add_executable(sweep_search examples/cpp/sweep_search.cpp)
+    target_link_libraries(sweep_search PRIVATE hnswlib::hnswlib pgm::pgm)
+
+    add_executable(compare_hnsw_shg examples/cpp/compare_hnsw_shg.cpp)
+    target_link_libraries(compare_hnsw_shg PRIVATE hnswlib::hnswlib pgm::pgm)
+
     #add_executable(preparedata examples/cpp/preparedata.cpp)
 
     #add_executable(example_epsilon_search examples/cpp/example_epsilon_search.cpp)

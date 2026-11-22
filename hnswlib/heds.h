@@ -3,6 +3,7 @@
 #include "visited_list_pool.h"
 #include "hnswlib.h"
 #include "basis.h"
+#include "prefetch_controller.h"
 #include <atomic>
 #include <random>
 #include <stdlib.h>
@@ -499,7 +500,11 @@ class HEDS : public AlgorithmInterface<dist_t> {
         }
         dis_bound = denseDensity[denseDensity.size()-1];
         shortcutsSize = Shortcuts.size(); 
-   
+
+        // Step 3: Initialize cluster representatives
+        ClusterPrefetcher::instance().init_clusters(num_base, [this](tableint id) -> void* {
+            return (void*)get_linklist0(id);
+        });
     }
 
     //Given the entry data, query data, current level and calculate dis, then return the skipped level
@@ -570,6 +575,7 @@ class HEDS : public AlgorithmInterface<dist_t> {
                 }                
             }
             //query.queryRes.push_back(std::make_tuple(currObj, level, curdist));
+            int orig_level = level;
             if(shortcutsSize < 100){
                 level --;
             }else{
@@ -582,6 +588,21 @@ class HEDS : public AlgorithmInterface<dist_t> {
                 }
                 if(skip_to_level == level) {level --;} 
             }
+
+            // Step 1: Skip-Triggered Prefetching
+            PrefetchController::on_shortcut_jump(
+                currObj,
+                orig_level,
+                level,
+                [this](tableint id, int lvl) -> void* {
+                    return (lvl == 0) ? (void*)get_linklist0(id) : (void*)get_linklist(id, lvl);
+                },
+                [this](tableint id) -> void* {
+                    return (void*)getDataByInternalId(id);
+                },
+                data_size_,
+                (level < orig_level - 1)
+            );
         }
 
         //std::cout << "entry point: " << currObj << " current dis: " << getDisByLevel(query.query_Id, currObj, 0) << "   " << std::max(ef_, (size_t)query.k) << std::endl;
@@ -590,16 +611,13 @@ class HEDS : public AlgorithmInterface<dist_t> {
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
 
         bool bare_bone_search = !num_deleted_ && !isIdAllowed;
+        size_t ef_search = std::max(ef_, (size_t)query.k);
         if (bare_bone_search) {
             top_candidates = searchBaseLayerSTPrune<true>(
-                    currObj, query.query_Id, getDataByInternalId(query.query_Id), (size_t)(query.k*1), resultsProcessing, isIdAllowed);
-            //top_candidates = searchBaseLayerST<true>(
-            //        currObj, getDataByInternalId(query.query_Id), (size_t)(query.k*1), isIdAllowed);
+                    currObj, query.query_Id, getDataByInternalId(query.query_Id), ef_search, resultsProcessing, isIdAllowed);
         } else {
             top_candidates = searchBaseLayerSTPrune<false>(
-                    currObj, query.query_Id, getDataByInternalId(query.query_Id), (size_t)(query.k*1), resultsProcessing, isIdAllowed);
-            //top_candidates = searchBaseLayerST<false>(
-            //        currObj, getDataByInternalId(query.query_Id), (size_t)(query.k*1), isIdAllowed);
+                    currObj, query.query_Id, getDataByInternalId(query.query_Id), ef_search, resultsProcessing, isIdAllowed);
         }
 
         while (top_candidates.size() > query.k) {
@@ -774,6 +792,13 @@ class HEDS : public AlgorithmInterface<dist_t> {
             tableint current_node_id = current_node_pair.second;
             int *data = (int *) get_linklist0(current_node_id);
             size_t size = getListCount((linklistsizeint*)data);
+
+            if (!candidate_set.empty()) {
+                PrefetchController::on_candidate_queue_next(
+                    candidate_set.top().second,
+                    [this](tableint id) -> void* { return (void*)get_linklist0(id); }
+                );
+            }
 //                bool cur_node_deleted = isMarkedDeleted(current_node_id);
             if (collect_metrics) {
                 metric_hops++;
@@ -784,6 +809,17 @@ class HEDS : public AlgorithmInterface<dist_t> {
 
             for (size_t j = 1; j <= size; j++) {
                 int candidate_id = *(data + j);
+
+                // Step 2: Lookahead Neighbor Prefetching
+                PrefetchController::on_base_layer_neighbor_lookahead(
+                    data,
+                    j,
+                    size,
+                    visited_array,
+                    [this](tableint id) -> void* { return (void*)getDataByInternalId(id); },
+                    data_size_,
+                    2
+                );
 //                    if (candidate_id == 0) continue;
 
                 if (!(visited_array[candidate_id] == visited_array_tag)) {
@@ -912,6 +948,13 @@ class HEDS : public AlgorithmInterface<dist_t> {
             tableint current_node_id = current_node_pair.second;
             int *data = (int *) get_linklist0(current_node_id);
             size_t size = getListCount((linklistsizeint*)data);
+
+            if (!candidate_set.empty()) {
+                PrefetchController::on_candidate_queue_next(
+                    candidate_set.top().second,
+                    [this](tableint id) -> void* { return (void*)get_linklist0(id); }
+                );
+            }
             
 
 
@@ -924,6 +967,17 @@ class HEDS : public AlgorithmInterface<dist_t> {
 
             for (size_t j = 1; j <= size; j++) {
                 int candidate_id = *(data + j);
+
+                // Step 2: Lookahead Neighbor Prefetching
+                PrefetchController::on_base_layer_neighbor_lookahead(
+                    data,
+                    j,
+                    size,
+                    visited_array,
+                    [this](tableint id) -> void* { return (void*)getDataByInternalId(id); },
+                    data_size_,
+                    2
+                );
 
 
                 if(pruneDisCompute(lowerBound, 0, queryID, candidate_id, resultsProcessing)){

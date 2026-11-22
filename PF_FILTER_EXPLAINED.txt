@@ -1,0 +1,302 @@
+PF_FILTER: A SIMPLE, DETAILED EXPLANATION
+==========================================
+
+Pf_Filter is a software-prefetching scheme for graph-based nearest-neighbour search (HNSW and SHG).
+In the code it is the mode PrefetchMode::IDEA2_V2 with v2_filter = true ("Idea 2.0 filter").
+It only changes WHEN data is requested from memory. The search steps and the results are exactly the same.
+
+
+0. WHAT PF_FILTER IS MADE OF
+----------------------------
+Pf_Filter is not a single trick. It is our Idea 1 + our Idea 2, with Idea 2's neighbour prefetch
+replaced by a smarter, filtered version:
+
+    Pf_Filter = Idea 1   (prefetch the landing node of every SHG level change / shortcut jump)
+              + Idea 2b  (prefetch the neighbour list of the next candidate in the queue)
+              + Idea 2a, improved:
+                    Idea 2  : at neighbour j, prefetch flag + vector of j+2, for every neighbour
+                    Pf_Filter: warm-up of neighbours 1..2, then flag of j+4 first and vector of j+2
+                               ONLY if it is not visited yet            <- the "filter"
+              + push prefetch (from vanilla hnswlib: neighbour list of the best candidate after a push)
+
+FOR HNSW (the focus of the report) Idea 1 does not exist: HNSW has no shortcut jumps, and its search
+never calls the Idea 1 hook. So on HNSW:
+
+    Pf_Filter (HNSW) = filtered lookahead + warm-up + Idea 2b + push prefetch      (no Idea 1)
+
+All HNSW + Pf_Filter numbers in this file and in the report are for exactly this set.
+
+Where each piece acts in a query:
+
+    upper levels (SHG only)  ->  Idea 1                       (section 7)
+    base layer, per hop      ->  Idea 2b + push prefetch      (section 8)
+    base layer, per neighbour->  filtered lookahead + warm-up (section 6)
+
+In the code, set_mode(PrefetchMode::IDEA2_V2) switches on Idea 1 (enable_skip_prefetch = true) and the
+Idea 2.0 hooks (enable_v2 = true); v2_filter = true selects the filtered lookahead. Idea 2's original
+unfiltered lookahead hook (enable_lookahead_prefetch) is switched OFF, because the filtered one replaces
+it. The table below shows which piece each mode has:
+
+                                         stock   Idea 1   Idea 2   Pf_Filter
+    Idea 1: landing-node prefetch (SHG)    -        x        x         x
+    lookahead j+1, 1 line                  x        -        -         -
+    lookahead j+2, 3 lines, unfiltered     -        -        x         -
+    lookahead j+2, 3 lines, FILTERED       -        -        -         x
+    warm-up of neighbours 1..2             -        -        -         x
+    Idea 2b: next candidate's list         -        -        x         x
+    push prefetch (best candidate's list)  x        -        -         x
+
+
+1. THE PROBLEM IN ONE PARAGRAPH
+-------------------------------
+A query walks through a big graph. At every node it visits, it looks at all of that node's neighbours
+(up to 96 in our graphs). For each neighbour it must (1) check a 1-byte "visited" flag and, if the
+neighbour is new, (2) load the neighbour's vector and compute its distance to the query. The graph is
+0.5 to 10 GB, much larger than the CPU caches (20 MiB L3 on our machine), and the neighbours sit at
+random places in memory. So most of these loads go all the way to main memory (DRAM), and the CPU sits
+idle until the data arrives.
+
+
+2. HOW BIG THE WAIT IS
+----------------------
+Measured on our machine (Intel i5-13400, about 4.1 GHz):
+
+    one DRAM load                     421-458 core cycles  (about 105 ns)
+    one distance computation, SIFT    25 cycles   (d = 128)
+    one distance computation, GIST1M  220 cycles  (d = 960)
+    one distance computation, Enron   401 cycles  (d = 1,369)
+
+On SIFT, one missed load costs as much as 17 distance computations.
+Measured share of base-layer time the CPU spends idle waiting on memory (efSearch 64):
+
+                    vanilla HNSW   SHG as published
+    Enron              16%             16%
+    GIST1M             13%             23%
+    SIFT1M             38%             24%
+    SIFT10M            29%             21%
+
+The base layer is 91-99% of the full query time, so this is almost the whole query.
+
+
+3. THE LOOP WE SPEED UP
+-----------------------
+This is the base-layer search loop (searchBaseLayerST / searchBaseLayerSTPrune in heds.h),
+simplified:
+
+    while the candidate queue is not empty:
+        c = closest unexplored candidate               (pop from the queue)
+        list = neighbour list of c                     <- memory load 1
+        for j = 1 .. size(list):
+            n = list[j]
+            if visited[n]: continue                    <- memory load 2 (1 byte)
+            visited[n] = true
+            v = vector of n                            <- memory load 3 (512 B to 5.5 KB)
+            d = distance(query, v)
+            if d is good enough: push n into the queue and the result set
+
+Load 3 is the expensive one. Load 2 is tiny, but it is also usually a miss, and the decision
+"skip or not" depends on it.
+
+
+4. WHAT PREFETCHING IS
+----------------------
+A prefetch is an instruction (_mm_prefetch) that says: "start bringing this address into the cache now,
+I will need it soon". It does not stop the CPU. If it is issued early enough, the data is already in the
+cache when the real load happens, and the wait disappears.
+
+Two things can go wrong:
+  - too late: the data has not arrived yet, so part of the wait remains;
+  - too much or useless: prefetches of data that is never used waste memory bandwidth and push useful
+    data out of the cache, which can make the search slower than no prefetching at all.
+
+
+5. WHAT EXISTED BEFORE PF_FILTER
+--------------------------------
+a) SHG as published: no prefetching in its base-layer loop at all.
+
+b) Vanilla hnswlib ("stock" prefetch):
+     - while at neighbour j, prefetch the visited flag and the first 64 bytes of the vector of j+1;
+     - before the loop, prefetch neighbour 1;
+     - after a push, prefetch the neighbour list of the best candidate.
+   Weakness: j+1 is only ONE step ahead. One step is one distance computation (25 cycles on SIFT), far
+   shorter than a 440-cycle DRAM load, so only part of the wait is hidden. It also fetches only 1 of
+   the vector's cache lines.
+
+c) Our Idea 1 (skip prefetch, SHG only): see section 7.
+
+d) Our Idea 2 = Idea 1 + two base-layer prefetches:
+     2a) lookahead: while at neighbour j, prefetch the visited flag and the first 3 cache lines of the
+         vector of j+2 (two steps ahead gives the data more time to arrive than stock's one step);
+     2b) next candidate: when a candidate is popped, prefetch the neighbour list (2 cache lines) of the
+         NEXT candidate in the queue, so the next hop does not start with a miss (section 8).
+   Weaknesses of 2a (2b has none; Pf_Filter keeps it as is):
+     - neighbours 1 and 2 of every node are never prefetched (no j for which j+2 = 1 or 2);
+     - it prefetches the vectors of neighbours that are ALREADY visited. In graph search these are
+       often half or more of all neighbours, so much of the prefetch traffic is wasted.
+
+
+6. THE NEW PART: FILTERED LOOKAHEAD (CHECK FIRST, THEN FETCH)
+--------------------------------------------------------------
+This replaces Idea 2a. Pf_Filter splits each neighbour's prefetch into two stages, D steps apart (D = 2):
+
+  Stage 1, far ahead (j + 2D = j + 4):
+      prefetch ONLY the 1-byte visited flag of that neighbour. This is cheap: one cache line.
+
+  Stage 2, closer (j + D = j + 2):
+      the flag of this neighbour was requested D steps ago, so it is now in the cache and reading it
+      costs almost nothing.
+        - already visited  -> do nothing (the search will skip it anyway);
+        - not visited      -> prefetch the first 3 cache lines of its vector.
+
+  Warm-up, before the loop starts:
+      neighbours 1..D can never be "j + D" for any j, so they are handled up front:
+        - prefetch the visited flags of neighbours 1 .. 2D,
+        - prefetch the vectors of neighbours 1 .. D (without the filter: their flags cannot have
+          arrived yet, and reading a missing flag would itself stall).
+
+Timeline example (D = 2), while the loop is at neighbour j = 5:
+
+    neighbour 9  (j+4):  request its visited flag
+    neighbour 7  (j+2):  its flag (requested at j = 3) is in cache now
+                         -> new? request its vector.  visited? request nothing.
+    neighbour 5  (j):    its vector was requested at j = 3 and has (mostly) arrived
+                         -> compute the distance with little or no waiting
+
+Pseudocode (what v2_prologue and v2_step do, prefetch_controller.h):
+
+    before the loop:
+        for k = 1 .. 2D:  prefetch(&visited[list[k]])
+        for k = 1 .. D:   prefetch(vector(list[k]), 3 lines)
+
+    at the top of iteration j:
+        if j + 2D <= size:  prefetch(&visited[list[j + 2D]])
+        if j + D  <= size:
+            n = list[j + D]
+            if visited[n] != tag:          # flag is already in cache
+                prefetch(vector(n), 3 lines)
+
+
+7. IDEA 1 INSIDE PF_FILTER: PREFETCH WHERE SHG LANDS (UPPER LEVELS, SHG ONLY)
+------------------------------------------------------------------------------
+How SHG's upper part works: it starts at the top level and, on each level, greedily moves to the
+neighbour closest to the query until nothing closer is found. Then it goes down. HNSW always goes down
+ONE level; SHG may use a "shortcut" and jump down SEVERAL levels at once, skipping work.
+
+The problem: the node where the search continues (the "landing node") is known only at the moment of
+the level change, and the first thing the next level does is read that node's neighbour list at the new
+level and its neighbours' vectors. Those are random addresses, so the next level starts with misses.
+
+Idea 1: at every level change (one level down, or a shortcut jump), immediately prefetch
+    1. the landing node's neighbour list at the destination level (2 cache lines),
+    2. the landing node's own vector (up to 4 cache lines),
+    3. the vector of the landing node's first neighbour (2 cache lines).
+These are issued while SHG still finishes the bookkeeping of the jump, so part of the first misses on
+the new level is hidden. When the jump lands on the base layer, the base-layer search starts warm.
+
+Code: PrefetchController::on_shortcut_jump (prefetch_controller.h), called in searchKnnShortcuts
+(heds.h, after the level / shortcut decision). Switched on by enable_skip_prefetch, which
+set_mode(IDEA2_V2) sets to true. HNSW's search (searchKnnHNSW) has no shortcut jumps and does not call
+it, so for HNSW Pf_Filter = Idea 2b + filtered lookahead + push prefetch.
+
+Expected effect: small. It fires once per level change, a few times per query, and SHG spends only
+0.3-3.5% of query time above the base layer. Its benefit for jumps that land on the base layer shows up
+in the base-layer numbers; the rest is in the full-query numbers (out2_<dataset>/).
+
+
+8. IDEA 2b AND THE PUSH PREFETCH INSIDE PF_FILTER: PREFETCH THE NEXT HOP (BASE LAYER)
+-------------------------------------------------------------------------------------
+Each hop of the base-layer loop starts by reading the neighbour list of the candidate it pops
+(memory load 1 in section 3). The lookahead (section 6) helps only INSIDE a hop; the first load of
+every hop would still be a miss.
+
+  Idea 2b, next candidate: right after popping candidate c, look at the candidate now at the front of
+  the queue (the likely next hop) and prefetch its neighbour list (2 cache lines, 128 bytes). While the
+  CPU works through c's ~50-96 neighbours, that list arrives.
+  Code: on_candidate_queue_next (prefetch_controller.h), called at the top of each hop in both
+  base-layer loops (heds.h). Active in Idea 2 and in Pf_Filter.
+
+  Push prefetch (from vanilla hnswlib): whenever a neighbour is pushed into the queue, prefetch the
+  neighbour list of whichever candidate is now best. If the new neighbour became the best, the next hop
+  will be to it, and its list is already on the way.
+  Code: the _mm_prefetch(get_linklist0(candidate_set.top().second)) line after candidate_set.emplace in
+  heds.h, enabled for Pf_Filter by v2_push_ll = true.
+
+The two overlap on purpose: 2b covers the case where the next hop is an older candidate, the push
+prefetch covers the case where it is a just-found one.
+
+
+9. WHY THE RESULTS STAY EXACTLY THE SAME
+----------------------------------------
+A prefetch never changes a value, a comparison or the order of steps. It only changes whether data is
+already in the cache. Pf_Filter's only extra "decision" is reading a visited flag early, and it only
+uses it to decide whether to issue a prefetch, never to change what the search does.
+Checked: on all 4 datasets and all efSearch values, every query returns exactly the same result IDs as
+the same search without prefetching (bench_prune/stall4_<dataset>/correctness.csv, all 0 mismatches).
+
+
+10. WHY THESE SETTINGS (D = 2, 3 LINES)
+--------------------------------------
+- D = 2: stock uses 1 step ahead, which is too late. In earlier sweeps of Idea 2, prefetching 2-3 steps
+  ahead was best and 5 was slightly worse, because data prefetched too early can be evicted before use.
+- 3 cache lines (192 bytes) of each vector: prefetching the WHOLE vector was tried and was 10-20%
+  slower than no prefetching on Enron and GIST1M (60-86 prefetches per neighbour flood the memory
+  system). 3 lines start the transfer; the hardware's own prefetcher streams the rest.
+- The filter matters most for large vectors: without it, Idea 2.0 was 5.8% SLOWER than vanilla HNSW on
+  GIST1M (3.8 KB vectors, lots of wasted traffic); with it, 3.7% faster.
+(Variants with D = 3 and with 8 lines were also tried and removed from the code; their results are kept
+ in bench_prune/stall4_<dataset>/stall.csv.)
+
+
+11. RESULTS (base layer, efSearch 64, single thread, cold cache)
+----------------------------------------------------------------
+Time per query and CPU idle time, published system vs + Pf_Filter:
+
+    HNSW (vs vanilla hnswlib)       total time    idle time
+      Enron                           -3.6%         -16%
+      GIST1M                          -3.6%         -13%
+      SIFT1M                          -0.9%          -9%
+      SIFT10M                         -4.7%         -15%
+
+    SHG (vs SHG as published)       total time    idle time
+      Enron                           -8.3%         -19%
+      GIST1M                         -15.2%         -23%
+      SIFT1M                         -10.7%         -16%
+      SIFT10M                        -13.4%         -23%
+
+As speedups: HNSW + Pf_Filter is 1.01-1.05x vanilla HNSW; SHG + Pf_Filter is 1.09-1.18x SHG as published.
+HNSW gains less because vanilla hnswlib already prefetches (one step ahead), so less wait is left to hide.
+Full-query numbers (upper layers included, plus recall) come from the bench_prune2 run (out2_<dataset>/).
+
+
+12. LIMITS
+----------
+- Pf_Filter only removes WAITING. The other time stays: for SHG, 63-76% of base-layer time is search
+  overhead (much of it the pruning bookkeeping). Even if all waiting were hidden, SHG's base layer
+  would be at most 16-24% faster.
+- On SHG, Pf_Filter is about equal to simply adding hnswlib's stock prefetch (within 1-3%).
+- It does not fix SHG's recall loss on GIST1M; that comes from SHG's pruning, not from memory.
+- The upper layers have no Pf_Filter-style lookahead (they are only 0.3-9% of query time).
+
+
+13. WHERE THE CODE IS
+---------------------
+SHG-Index/bench_prune/hnswlib_patched/
+  prefetch_controller.h
+    - enum value IDEA2_V2 = 5, settings v2_dist (D), v2_lines, v2_warmup, v2_filter, v2_push_ll
+    - set_mode(): case PrefetchMode::IDEA2_V2
+    - v2_prologue(): warm-up        v2_step(): the filter (the `if (v2_filter)` branch)
+    - on_candidate_queue_next(): next candidate's neighbour list
+    - on_shortcut_jump(): Idea 1
+  heds.h (search for "Idea 2.0"):
+    - searchBaseLayerST (HNSW search) and searchBaseLayerSTPrune (SHG search):
+      v2_prologue before the neighbour loop, v2_step at the top of each iteration,
+      push prefetch after candidate_set.emplace(...)
+SHG-Index/bench_prune/V2_FILTER_PATCH.md: add-only patch of Pf_Filter for the original hnswlib/ code.
+Use: hnswlib::PrefetchController::set_mode(hnswlib::PrefetchMode::IDEA2_V2) with v2_filter = true.
+
+
+IN ONE SENTENCE
+---------------
+Pf_Filter = Idea 1 (prefetch where SHG lands) + Idea 2 (prefetch the next hop's neighbour list and
+neighbours a few steps ahead), with Idea 2's neighbour prefetch made smarter: it first fetches the 1-byte
+"already visited?" flag, so it only brings in vectors the search will actually use.

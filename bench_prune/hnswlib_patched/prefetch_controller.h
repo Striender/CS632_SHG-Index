@@ -23,7 +23,8 @@ enum class PrefetchMode {
     STEP2_SKIP_LOOKAHEAD = 2,
     STEP3_CLUSTER = 3,
     STOCK_HNSW = 4,  // hnswlib's original prefetch lines only (reference behaviour)
-    IDEA2_V2 = 5     // Idea 2.0: warm-up + lookahead j+D + optional visited filter (see v2_* below)
+    IDEA2_V2 = 5,    // Idea 2.0: warm-up + lookahead j+D + optional visited filter (see v2_* below)
+    AUTOTUNE = 6     // Analytical model auto-tuning
 };
 
 // Global helper: prefetch contiguous memory across 64-byte cache lines
@@ -44,26 +45,99 @@ static inline void prefetch_range(const void* address, size_t bytes, size_t max_
 namespace hnswlib {
 
 /**
+ * Analytical Microarchitectural Cost Model Configuration
+ */
+struct CostModelConfig {
+    double t_dram = 380.0;       // DRAM round-trip latency in core cycles
+    double t_visited = 15.0;     // Visited check latency
+    double t_pq = 25.0;          // Priority queue operation
+    double t_overhead = 10.0;    // Loop overhead
+    double p_unvisited = 0.45;   // Expected fraction of unvisited neighbors
+    double t_simd = 0.0;         // Measured/calibrated SIMD distance compute cycles
+    double tau_iter = 0.0;       // Estimated single neighbor iteration latency
+    size_t d_star = 2;           // Analytically optimal lookahead distance
+    size_t l_star = 3;           // Analytically optimal prefetch lines
+    size_t threads = 1;          // Concurrency level
+};
+
+/**
  * PrefetchController:
  * Modular controller for skip-aware, lookahead, and cluster graph memory prefetching.
  * Keeps hardware intrinsics and prefetch policies cleanly isolated from core graph search.
  */
 class PrefetchController {
 public:
-    static inline bool enable_skip_prefetch = true;      // Step 1: Skip-triggered prefetch
-    static inline bool enable_lookahead_prefetch = true; // Step 2: Base-layer lookahead prefetch
-    static inline bool enable_cluster_prefetch = true;   // Step 3: Cluster-aware prefetch
-    static inline bool enable_stock_prefetch = false;
-    static inline size_t lookahead_lines = 3;            // Idea 2: cache lines of the vector to prefetch (3 = original; huge = whole vector)
-    static inline size_t lookahead_dist = 2;             // Idea 2: prefetch the neighbour this many slots ahead
+    static inline thread_local bool enable_skip_prefetch = true;      // Step 1: Skip-triggered prefetch
+    static inline thread_local bool enable_lookahead_prefetch = true; // Step 2: Base-layer lookahead prefetch
+    static inline thread_local bool enable_cluster_prefetch = true;   // Step 3: Cluster-aware prefetch
+    static inline thread_local bool enable_stock_prefetch = false;
+    static inline thread_local size_t lookahead_lines = 3;            // Idea 2: cache lines of the vector to prefetch (3 = original; huge = whole vector)
+    static inline thread_local size_t lookahead_dist = 2;             // Idea 2: prefetch the neighbour this many slots ahead
     // ---- Idea 2.0 knobs (used only in IDEA2_V2 mode) ----
-    static inline bool   enable_v2   = false;
-    static inline size_t v2_dist     = 2;     // steady state: while at neighbour j, prefetch neighbour j+D
-    static inline size_t v2_lines    = 3;     // cache lines of each neighbour vector to prefetch
-    static inline bool   v2_warmup   = true;  // before the loop, prefetch neighbours 1..D (they are never j+D)
-    static inline bool   v2_filter   = false; // prefetch visited flag at j+2D, then vector at j+D only if not visited
-    static inline bool   v2_push_ll  = true;  // stock: prefetch link list of the best candidate after each push
-    static inline std::string custom_mode_name = "";
+    static inline thread_local bool   enable_v2   = false;
+    static inline thread_local size_t v2_dist     = 2;     // steady state: while at neighbour j, prefetch neighbour j+D
+    static inline thread_local size_t v2_lines    = 3;     // cache lines of each neighbour vector to prefetch
+    static inline thread_local bool   v2_warmup   = true;  // before the loop, prefetch neighbours 1..D (they are never j+D)
+    static inline thread_local bool   v2_filter   = false; // prefetch visited flag at j+2D, then vector at j+D only if not visited
+    static inline thread_local bool   v2_push_ll  = true;  // stock: prefetch link list of the best candidate after each push
+    static inline thread_local std::string custom_mode_name = "";
+
+    static inline thread_local CostModelConfig cost_model;
+
+    template <typename DistFunc>
+    static inline CostModelConfig compute_optimal_parameters(
+        size_t dim,
+        DistFunc dist_func,
+        const void* dist_param,
+        const void* sample_v1 = nullptr,
+        const void* sample_v2 = nullptr,
+        size_t concurrency_threads = 1
+    ) {
+        CostModelConfig cfg;
+        cfg.threads = concurrency_threads;
+        if (sample_v1 && sample_v2) {
+            volatile float dummy = 0;
+            for (int i = 0; i < 500; i++) dummy += dist_func(sample_v1, sample_v2, dist_param);
+            uint64_t c0 = __rdtsc();
+            const int ITERS = 20000;
+            for (int i = 0; i < ITERS; i++) dummy += dist_func(sample_v1, sample_v2, dist_param);
+            uint64_t c1 = __rdtsc();
+            cfg.t_simd = (double)(c1 - c0) / ITERS;
+        } else {
+            cfg.t_simd = std::max(20.0, (double)dim * 0.28);
+        }
+
+        cfg.tau_iter = cfg.t_visited + cfg.p_unvisited * (cfg.t_simd + cfg.t_pq) + cfg.t_overhead;
+        double raw_d = cfg.t_dram / cfg.tau_iter;
+        size_t d = (size_t)std::ceil(raw_d);
+        if (d < 1) d = 1;
+        if (d > 8) d = 8;
+        cfg.d_star = d;
+
+        size_t total_lines = (dim * sizeof(float) + 63) / 64;
+        cfg.l_star = std::min((size_t)3, total_lines);
+
+        // Contention-aware adaptation
+        if (concurrency_threads >= 32) {
+            cfg.l_star = 1;
+            if (cfg.d_star > 1) cfg.d_star -= 1;
+        } else if (concurrency_threads >= 16) {
+            cfg.l_star = std::min(cfg.l_star, (size_t)2);
+        }
+
+        return cfg;
+    }
+
+    static inline void apply_cost_model(const CostModelConfig& cfg) {
+        cost_model = cfg;
+        enable_v2 = true;
+        v2_dist = cfg.d_star;
+        v2_lines = cfg.l_star;
+        v2_warmup = true;
+        v2_filter = true;
+        v2_push_ll = true;
+        custom_mode_name = "pf_filter_autotune";
+    }
 
     static inline void set_mode(PrefetchMode mode) {
         enable_stock_prefetch = false;
@@ -105,6 +179,19 @@ public:
                 ClusterPrefetcher::enable_cluster_prefetch = false;
                 enable_v2 = true;
                 custom_mode_name = "idea2_v2";
+                break;
+            case PrefetchMode::AUTOTUNE:
+                enable_skip_prefetch = true;
+                enable_lookahead_prefetch = false;
+                enable_cluster_prefetch = false;
+                ClusterPrefetcher::enable_cluster_prefetch = false;
+                enable_v2 = true;
+                v2_dist = cost_model.d_star;
+                v2_lines = cost_model.l_star;
+                v2_warmup = true;
+                v2_filter = true;
+                v2_push_ll = true;
+                custom_mode_name = "pf_filter_autotune";
                 break;
             case PrefetchMode::STEP3_CLUSTER:
                 enable_skip_prefetch = true;

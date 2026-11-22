@@ -50,8 +50,8 @@ class HEDS : public AlgorithmInterface<dist_t> {
     double mult_{0.0}, revSize_{0.0};
     int maxlevel_{0};
 
-    mutable long long baseNumDis{0}, baseNumScan{0};
-    mutable int purneNumDis{0}, purneBaseNumDis{0};
+    static inline thread_local long long baseNumDis{0}, baseNumScan{0};
+    static inline thread_local int purneNumDis{0}, purneBaseNumDis{0};
 
     std::unique_ptr<VisitedListPool> visited_list_pool_{nullptr};
 
@@ -76,8 +76,8 @@ class HEDS : public AlgorithmInterface<dist_t> {
     std::default_random_engine level_generator_;
     std::default_random_engine update_probability_generator_;
 
-    mutable std::atomic<long> metric_distance_computations{0};
-    mutable std::atomic<long> metric_hops{0};
+    static inline thread_local long metric_distance_computations{0};
+    static inline thread_local long metric_hops{0};
 
     bool allow_replace_deleted_ = false;  // flag to replace deleted elements (marked as deleted) during insertions
 

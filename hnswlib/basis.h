@@ -138,12 +138,44 @@ float calculateRecall(int &queryID, int &K, std::priority_queue<std::pair<float,
     return float(cnt)/float(K);
 }
 
+inline std::string resolve_data_file(const std::string &dataset, const std::string &filename) {
+    std::vector<std::string> candidates = {
+        dataset + "/" + filename,
+        "../" + dataset + "/" + filename,
+        "/home/striender/Course/ADBMS/SHG-Index/" + dataset + "/" + filename,
+        "/home/data/zgongae/VectorsIndex/HEDS/" + dataset + "/" + filename
+    };
+    const char* env_path = std::getenv("DATA_PATH");
+    if (env_path) {
+        candidates.insert(candidates.begin(), std::string(env_path) + "/" + dataset + "/" + filename);
+        candidates.insert(candidates.begin(), std::string(env_path) + "/" + filename);
+    }
+    for (const auto& p : candidates) {
+        std::ifstream check(p.c_str(), std::ios::binary);
+        if (check.is_open()) return p;
+    }
+    return candidates[0];
+}
+
+inline std::string resolve_results_dir() {
+    std::vector<std::string> candidates = {
+        "results",
+        "../results",
+        "/home/striender/Course/ADBMS/SHG-Index/results"
+    };
+    for (const auto& dir : candidates) {
+        std::ifstream check(dir.c_str());
+        if (check.good()) return dir;
+    }
+    int r = system("mkdir -p results");
+    (void)r;
+    return "results";
+}
+
 void load_query_groundtruth(std::string &dataset, int &num_query, float** &queryVectors, int** &groundtruth){
 
-    // std::string query_input = "/home/data/zgongae/VectorsIndex/datasets/" + dataset + "/" + dataset +"_query.fvecs";
-    // std::string groundtruth_input = "/home/data/zgongae/VectorsIndex/datasets/" + dataset + "/" + dataset +"_groundtruth.ivecs";
-    std::string query_input = "/home/data/zgongae/VectorsIndex/HEDS/" + dataset + "/" + dataset +"_query.fvecs";
-    std::string groundtruth_input = "/home/data/zgongae/VectorsIndex/HEDS/" + dataset + "/" + dataset +"_groundtruth.ivecs";
+    std::string query_input = resolve_data_file(dataset, dataset + "_query.fvecs");
+    std::string groundtruth_input = resolve_data_file(dataset, dataset + "_groundtruth.ivecs");
 
     std::ifstream file_query(query_input, std::ios::binary);
     std::ifstream file_truth(groundtruth_input, std::ios::binary);
@@ -161,6 +193,7 @@ void load_query_groundtruth(std::string &dataset, int &num_query, float** &query
     file_query.seekg(0, std::ios::end);
     size_t fileSize = file_query.tellg();
     file_query.seekg(0, std::ios::beg);
+    file_truth.seekg(0, std::ios::beg);
     num_query = fileSize / vecsizeof;
 
     std::cout << num_query << " " << d << " " << top <<std::endl;
